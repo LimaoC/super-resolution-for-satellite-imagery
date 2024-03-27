@@ -1,8 +1,8 @@
 # stat3007-project
 STAT3007 2024 Semester 1 Group Project
 
-## Setting up environment
-*Note you may need to substitue "python" with "python3" or "py" in the following commands depending on installation*
+## Setting up the environment
+*Note you may need to substitue "python" with "python3" or "py" in the following commands depending on your Python installation*
 
 After cloning the repo navigate to its location, for example 
 ```bash
@@ -33,3 +33,8 @@ Start a Jupyter Lab server
 $ jupyter lab
 ```
 You should now be able to run the notebook at `super_resolution/notebooks/example_notebook.ipynb`.
+
+To deactivate the virtual environment when done, use
+```bash
+$ deactivate
+```
