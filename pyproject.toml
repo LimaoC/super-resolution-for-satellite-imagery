@@ -1,5 +1,5 @@
 [project]
 name = "super_resolution"
 version = "0.1.0"
-authors = [{name = "Mitchell Clark"}, {name = "Nazeef Hamid"}, {name = "Alexander Kenna"}, {name = "Emmanuel Skoufris"}]
+authors = [{name = "Limao Chang"}, {name = "Mitchell Clark"}, {name = "Nazeef Hamid"}, {name = "Alexander Kenna"}, {name = "Emmanuel Skoufris"}]
 description = "Super resolution project"
