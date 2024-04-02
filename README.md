@@ -20,7 +20,7 @@ For POSIX
 ```bash
 source myenv/bin/activate
 ```
-Install requirements
+For windows only, you can install requirements with the following.
 ```bash
 pip install -r requirements.txt
 ```
