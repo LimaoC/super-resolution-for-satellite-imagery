@@ -1,14 +1,18 @@
 """
 Data loader and utils for the SEN2VENµS dataset
+
+Inspired by the below implementation
+REF: https://github.com/piclem/sen2venus-pytorch-dataset/blob/main/sen2venus/dataset/sen2venus.py
 """
 
 import os
+import torch
 from torch.utils.data import Dataset
 from torchvision.datasets.utils import download_url
 
 
-class Sen2VenusSites:
-    """Dataclass for the Sen2Venus sites"""
+class S2VSites:
+    """Dataclass for the SEN2VENµS sites"""
 
     URL = "https://zenodo.org/records/6514159/files/{}.7z?download=1"
     SITES = [
@@ -46,46 +50,145 @@ class Sen2VenusSites:
 
     @staticmethod
     def get_url(site_name: str) -> tuple[str, str]:
-        for site in Sen2VenusSites.SITES:
+        for site in S2VSites.SITES:
             if site_name == site[0]:
-                return (Sen2VenusSites.URL.format(site_name), site[1])
+                return (S2VSites.URL.format(site_name), site[1])
 
         raise ValueError(f"site {site_name} not found")
 
     @staticmethod
     def get_sites() -> list[str]:
-        return [s[0] for s in Sen2VenusSites.SITES]
+        return [s[0] for s in S2VSites.SITES]
 
 
-class Sen2VenusDataset(Dataset):
-    """SEN2VENµS dataset."""
+class S2VSite(Dataset):
+    """SEN2VENµS dataset for a single site."""
 
-    BAND_SUFFIXES = [
-        "_05m_b2b3b4b8.pt",  # venus blue 5m, green 5m, red 5m, NIR 5m
-        "_05m_b4b5b6b8a.pt",  # venus red edge 5m, red edge 5m, red edge 5m, NIR 5m
-        "_10m_b2b3b4b8.pt",  # sentinel-2 blue 10m, green 10m, red 10m, wide NIR 10m
-        "_20m_b4b5b6b8a.pt",  # sentinel-2 red edge 20m, red edge 20m, red edge 20m, narrow NIR 20m
-    ]
+    # blue 5m, green 5m, red 5m, NIR 5m
+    VENUS_RGBNIR = "_05m_b2b3b4b8.pt"
+    # red edge 5m, red edge 5m, red edge 5m, NIR 5m
+    VENUS_EDGENIR = "_05m_b4b5b6b8a.pt"
+    # blue 10m, green 10m, red 10m, wide NIR 10m
+    SENT2_RGBNIR = "_10m_b2b3b4b8.pt"
+    # 3 red edge 20m, red edge 20m, red edge 20m, narrow NIR 20m
+    SENT2_EDGENIR = "_20m_b4b5b6b8a.pt"
+    SCALE = 10_000
 
-    def __init__(self, site_name: str, bands: str = "all", download_dir: str = "data/"):
+    def __init__(
+        self,
+        site_name: str,
+        bands: str = "all",
+        download_dir: str = "data/",
+        device: str = "cpu",
+    ):
         """
+        SEN2VENµS dataset for a single site.
+
         Parameters:
             site_name: one of the site names in `Sen2VenusSites.get_sites()`.
             bands: one of ("all", "rgbnir", "edgenir"), defaults to "all".
             download_dir: directory to download dataset to, defaults to "data/".
+            device: device to load tensors onto, defaults to "cpu".
         """
-        if site_name not in Sen2VenusSites.get_sites():
+        if site_name not in S2VSites.get_sites():
             raise ValueError(f"site {site_name} not found")
         if bands not in ("all", "rgbnir", "edgenir"):
             raise ValueError(f"band group {bands} not found")
 
         self.site_name = site_name
+        self.bands = bands
+
+        self.url = S2VSites.get_url(site_name)
         self.download_dir = download_dir
         self.dataset_path = os.path.join(download_dir, site_name)
-        self.url = Sen2VenusSites.get_url(site_name)
+        self.device = device
 
         # Download and extract the dataset (if it hasn't already been downloaded)
         self.download_and_extract()
+
+        # Parse samples from the extracted dataset
+        self.parse_samples()
+
+    def parse_samples(self):
+        """Parse samples from extracted dataset"""
+        # Each sample corresponds to a patch in the original dataset, and consists of
+        # two input tensors (one for each group of bands) from Sentinel-2 and two
+        # output tensors (again one for each group of bands) from VENµS.
+        self.total_samples = 0
+        self.samples = []
+
+        # Extract all the pairs for this site. Each pair is uniquely identified by
+        # the first three fields in each filename (site name, mgrs tile, acquisition
+        # date).
+        pt_files = [f for f in os.listdir(self.dataset_path) if f.endswith(".pt")]
+        pair_ids = ["_".join(f.split("_")[:3]) for f in pt_files]
+
+        for id in pair_ids:
+            # Reconstruct the input and output file names from the pair ids
+            input_files = [
+                os.path.join(self.dataset_path, id + self.SENT2_RGBNIR),
+                os.path.join(self.dataset_path, id + self.SENT2_EDGENIR),
+            ]
+            target_files = [
+                os.path.join(self.dataset_path, id + self.VENUS_RGBNIR),
+                os.path.join(self.dataset_path, id + self.VENUS_RGBNIR),
+            ]
+
+            # Work out how many patches are in this pair; use this to keep track of the
+            # total number of patches.
+            num_patches = torch.load(input_files[0]).size(0)
+            for batch_pos in range(num_patches):
+                self.samples.append((input_files, target_files, batch_pos))
+            self.total_samples += num_patches
+
+    def __len__(self):
+        return self.total_samples
+
+    def __getitem__(self, index):
+        input_files, target_files, pos = self.samples[index]
+
+        if self.bands == "rgbnir":
+            input_tensor = (
+                torch.load(input_files[0], map_location=self.device)[pos] / self.SCALE
+            )
+            target_tensor = (
+                torch.load(target_files[0], map_location=self.device)[pos] / self.SCALE
+            )
+        elif self.bands == "edgenir":
+            input_tensor = (
+                torch.load(input_files[1], map_location=self.device)[pos] / self.SCALE
+            )
+            target_tensor = (
+                torch.load(target_files[1], map_location=self.device)[pos] / self.SCALE
+            )
+        else:
+            # The Sentinel-2 EDGENIR bands are 20m in resolution, so we need to upscale
+            # them to the 10m RGBNIR bands. We do this with bicubic interpolation
+            input_tensor = torch.concat(
+                (
+                    torch.load(input_files[0], map_location=self.device)[pos]
+                    / self.SCALE,
+                    torch.nn.functional.interpolate(
+                        torch.load(input_files[1], map_location=self.device)[
+                            pos
+                        ].unsqueeze(0)
+                        / self.SCALE,
+                        scale_factor=(2, 2),
+                        mode="bicubic",
+                    ).squeeze(0),
+                ),
+                dim=0,
+            )
+            target_tensor = torch.concat(
+                (
+                    torch.load(target_files[0], map_location=self.device)[pos]
+                    / self.SCALE,
+                    torch.load(target_files[1], map_location=self.device)[pos]
+                    / self.SCALE,
+                ),
+                dim=0,
+            )
+        return input_tensor, target_tensor
 
     def is_downloaded(self) -> bool:
         """Checks if the dataset zip has already been downloaded."""
