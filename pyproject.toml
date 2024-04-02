@@ -1,3 +1,5 @@
+[tool.setuptools]
+packages = ["super_resolution"]
 [project]
 name = "super_resolution"
 version = "0.1.0"
