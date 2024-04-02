@@ -1,4 +1,4 @@
-# stat3007-project
+# STAT3007 Project
 STAT3007 2024 Semester 1 Group Project
 
 ## Setting up the environment
