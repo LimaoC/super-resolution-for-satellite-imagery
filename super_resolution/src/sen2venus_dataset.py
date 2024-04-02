@@ -2,6 +2,10 @@
 Data loader and utils for the SEN2VENµS dataset
 """
 
+import os
+from torch.utils.data import Dataset
+from torchvision.datasets.utils import download_url
+
 
 class Sen2VenusSites:
     """Dataclass for the Sen2Venus sites"""
@@ -51,3 +55,64 @@ class Sen2VenusSites:
     @staticmethod
     def get_sites() -> list[str]:
         return [s[0] for s in Sen2VenusSites.SITES]
+
+
+class Sen2VenusDataset(Dataset):
+    """SEN2VENµS dataset."""
+
+    BAND_SUFFIXES = [
+        "_05m_b2b3b4b8.pt",  # venus blue 5m, green 5m, red 5m, NIR 5m
+        "_05m_b4b5b6b8a.pt",  # venus red edge 5m, red edge 5m, red edge 5m, NIR 5m
+        "_10m_b2b3b4b8.pt",  # sentinel-2 blue 10m, green 10m, red 10m, wide NIR 10m
+        "_20m_b4b5b6b8a.pt",  # sentinel-2 red edge 20m, red edge 20m, red edge 20m, narrow NIR 20m
+    ]
+
+    def __init__(self, site_name: str, bands: str = "all", download_dir: str = "data/"):
+        """
+        Parameters:
+            site_name: one of the site names in `Sen2VenusSites.get_sites()`.
+            bands: one of ("all", "rgbnir", "edgenir"), defaults to "all".
+            download_dir: directory to download dataset to, defaults to "data/".
+        """
+        if site_name not in Sen2VenusSites.get_sites():
+            raise ValueError(f"site {site_name} not found")
+        if bands not in ("all", "rgbnir", "edgenir"):
+            raise ValueError(f"band group {bands} not found")
+
+        self.site_name = site_name
+        self.download_dir = download_dir
+        self.dataset_path = os.path.join(download_dir, site_name)
+        self.url = Sen2VenusSites.get_url(site_name)
+
+        # Download and extract the dataset (if it hasn't already been downloaded)
+        self.download_and_extract()
+
+    def is_downloaded(self) -> bool:
+        """Checks if the dataset zip has already been downloaded."""
+        return self.site_name + ".7z" in os.listdir(self.download_dir)
+
+    def is_extracted(self) -> bool:
+        """Checks if the dataset zip has already been extracted."""
+        if not os.path.exists(self.dataset_path):
+            return False
+        return os.listdir(self.dataset_path) != []
+
+    def download_and_extract(self) -> None:
+        """
+        Attempts to download and extract the dataset. Does not re-download nor
+        re-extract if the zip and files (respectively) already exist.
+        """
+        import py7zr
+
+        zip_name = self.site_name + ".7z"
+
+        if not self.is_downloaded():
+            download_url(
+                url=self.url[0],
+                root=self.download_dir,
+                md5=self.url[1],
+                filename=zip_name,
+            )
+        if not self.is_extracted():
+            with py7zr.SevenZipFile(self.download_dir + zip_name, mode="r") as zip:
+                zip.extractall(self.download_dir)
