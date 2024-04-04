@@ -2,7 +2,7 @@
 
 #SBATCH --job-name=pytorchtest
 #SBATCH --time=0-0:05
-#SBATCH --mem-per-cpu=16G
+#SBATCH --mem=16G
 #SBATCH --output torch_test.txt
 #SBATCH --partition=gpu
 #SBATCH --gres=gpu:1
