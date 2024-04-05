@@ -5,14 +5,20 @@ Inspired by the below implementation
 REF: https://github.com/piclem/sen2venus-pytorch-dataset/blob/main/sen2venus/dataset/sen2venus.py
 """
 
+import itertools
 import os
 import pathlib
+import random
 from typing import Optional
 
-import tqdm
 import torch
 from torch.utils.data import Dataset
 from torchvision.datasets.utils import download_url
+
+TRAIN_PROPORTION = 0.7
+CANONICAL_ORDER = ()  # TODO(mitch): Generate canonical order.
+
+Sample = tuple[list[str], list[str], int]
 
 
 class S2VSites:
@@ -141,7 +147,6 @@ class S2VSite(Dataset):
             # Work out how many patches are in this pair; use this to keep track of the
             # total number of patches.
             num_patches = torch.load(input_files[0]).size(0)
-            print(num_patches)
             for batch_pos in range(num_patches):
                 self.samples.append((input_files, target_files, batch_pos))
             self.total_samples += num_patches
@@ -226,51 +231,101 @@ class S2VSite(Dataset):
                 zip.extractall(self.download_dir)
 
 
-def create_all_train_test(
-    data_dir: str, seed: int = -1
-) -> Optional[tuple[Dataset, Dataset]]:
+class PatchData(Dataset):
+    """Dataset for storing patch file data."""
 
+    def __init__(self, samples: list[Sample]):
+        """
+        Parameters:
+            samples (list[Sample]): Patch samples.
+        """
+        self.samples = samples
+
+    def __len__(self) -> int:
+        return len(self.samples)
+
+    def __getitem__(self, index: int) -> tuple[torch.Tensor, torch.Tensor]:
+        input_files, target_files, pos = self.samples[index]
+
+        input_tensor = (
+            torch.load(input_files[0], map_location="cpu")[pos] / S2VSite.SCALE
+        )
+        target_tensor = (
+            torch.load(target_files[0], map_location="cpu")[pos] / S2VSite.SCALE
+        )
+
+        return input_tensor, target_tensor
+
+
+def download_all_site_data(download_dir: str) -> None:
+    """Download and extracts all site data into the given download directory."""
+    for site_name, _ in S2VSites.SITES:
+        print(f"Downloading site {site_name}")
+        S2VSite(
+            site_name=site_name,
+            bands="rgbnir",
+            download_dir=download_dir,
+            device="cpu",
+        )
+
+
+def create_train_test_split(
+    data_dir: str, seed: int = -1, sites: Optional[set[str]] = None
+) -> Optional[tuple[PatchData, PatchData]]:
+    """Create train-test split using all satellite data.
+
+    Parameters:
+        data_dir (str): Directory where all site data is downloaded.
+        seed (int): Seed to randomly shuffle data. Default is -1 which uses canonical ordering.
+        sites (Optional[set[str]]): Set of sites to create split from. Default is None which
+            creates split from all sites.
+
+    Returns:
+        (Optional[tuple[PatchData, PatchData]]): train dataset, test dataset tuple.
+    """
+    # Gather paths
     data_dir_path = pathlib.Path(data_dir)
     downloaded_sites = set(
         path.stem for path in data_dir_path.iterdir() if path.is_dir()
     )
-    all_sites = set(site_name for site_name, _ in S2VSites.SITES)
+    all_sites = sites if sites else set(site_name for site_name, _ in S2VSites.SITES)
     missing = all_sites - downloaded_sites
 
-    if len(missing) != 0 and not _check_to_download(len(all_sites), len(missing)):
-        return
+    # Download if required
+    if len(missing) != 0 and _check_to_download(len(all_sites), len(missing)):
+        download_all_site_data(data_dir)
 
-    # Download missing site data
-    for site_name, _ in tqdm.tqdm(S2VSites.SITES, ncols=100):
-        if site_name not in missing:
-            continue
-
-        S2VSite(
+    # Gather all samples
+    all_samples = [([""], [""], -1) for _ in downloaded_sites]
+    for i, site_name in enumerate(downloaded_sites):
+        site = S2VSite(
             site_name=site_name,
             bands="rgbnir",
             download_dir=data_dir,
             device="cpu",
         )
+        all_samples[i] = site.samples
+    all_samples = list(itertools.chain(*all_samples))
 
-    # Gather all pytorch files
-    all_files = list(data_dir_path.glob("**.pt"))
-    all_files.sort()
+    # Reorder all samples
+    if seed == -1:
+        raise NotImplementedError(
+            "Canonical order not available yet. Please provide a seed."
+        )
+        all_samples = [all_samples[i] for i in CANONICAL_ORDER]
+    else:
+        random.seed(seed)
+        random.shuffle(all_samples)
 
-    # Find number of patches in each pytorch file
-    pt_files = [f for f in os.listdir(self.dataset_path) if f.endswith(".pt")]
-    pair_ids = ["_".join(f.split("_")[:-2]) for f in pt_files]
-
-    # num_patches = [None for _ in all_files]
-    # for i, file in all_files:
-
-    return None
+    cut_off = int(TRAIN_PROPORTION * len(all_samples))
+    return PatchData(all_samples[:cut_off]), PatchData(all_samples[cut_off:])
 
 
 def _check_to_download(total: int, num_missing: int) -> bool:
-    return (
-        input(
+    response = ""
+    while len(response) != 1 or response not in "YyNn":
+        response = input(
             f"Missing {num_missing}/{total} sites data."
-            "Would you like to download now? (Y/y) for yes."
+            " Would you like to download now? Yes (Y/y) or no (N/n)"
         )
-        in "yY"
-    )
+    return response in "yY"
