@@ -294,6 +294,9 @@ def create_train_test_split(
     # Download if required
     if len(missing) != 0 and _check_to_download(len(all_sites), len(missing)):
         download_all_site_data(data_dir)
+    downloaded_sites = set(
+        path.stem for path in data_dir_path.iterdir() if path.is_dir()
+    )
 
     # Gather all samples
     all_samples = [([""], [""], -1) for _ in downloaded_sites]
