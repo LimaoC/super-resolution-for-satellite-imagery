@@ -308,7 +308,7 @@ def create_train_test_split(
             device="cpu",
         )
         site_samples[i] = site.samples
-    all_samples: list[Sample] = sorted(itertools.chain.from_iterable(site_samples))
+    all_samples = sorted(itertools.chain.from_iterable(site_samples))
 
     # Reorder all samples
     if seed == -1:
