@@ -285,22 +285,18 @@ def create_train_test_split(
     """
     # Gather paths
     data_dir_path = pathlib.Path(data_dir)
-    downloaded_sites = set(
-        path.stem for path in data_dir_path.iterdir() if path.is_dir()
-    )
+    downloaded_sites = _get_downloaded_sites(data_dir_path)
     all_sites = sites if sites else set(site_name for site_name, _ in S2VSites.SITES)
     missing = all_sites - downloaded_sites
 
     # Download if required
     if len(missing) != 0 and _check_to_download(len(all_sites), len(missing)):
         download_all_site_data(data_dir)
-    downloaded_sites = set(
-        path.stem for path in data_dir_path.iterdir() if path.is_dir()
-    )
+    sites = _get_downloaded_sites(data_dir_path) & all_sites
 
     # Gather all samples
-    site_samples = [[([""], [""], -1)] for _ in downloaded_sites]
-    for i, site_name in enumerate(downloaded_sites):
+    site_samples = [[([""], [""], -1)] for _ in sites]
+    for i, site_name in enumerate(sites):
         site = S2VSite(
             site_name=site_name,
             bands="rgbnir",
@@ -332,3 +328,7 @@ def _check_to_download(total: int, num_missing: int) -> bool:
             " Would you like to download now? Yes (Y/y) or no (N/n)"
         )
     return response in "yY"
+
+
+def _get_downloaded_sites(data_dir: pathlib.Path) -> set[str]:
+    return set(path.stem for path in data_dir.iterdir() if path.is_dir())
