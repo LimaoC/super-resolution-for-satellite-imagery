@@ -121,7 +121,7 @@ class S2VSite(Dataset):
         # the first three fields in each filename (site name, mgrs tile, acquisition
         # date).
         pt_files = [f for f in os.listdir(self.dataset_path) if f.endswith(".pt")]
-        pair_ids = ["_".join(f.split("_")[:3]) for f in pt_files]
+        pair_ids = ["_".join(f.split("_")[:-2]) for f in pt_files]
 
         for id in pair_ids:
             # Reconstruct the input and output file names from the pair ids
