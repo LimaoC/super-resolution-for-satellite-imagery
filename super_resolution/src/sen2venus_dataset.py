@@ -299,7 +299,7 @@ def create_train_test_split(
     )
 
     # Gather all samples
-    all_samples = [([""], [""], -1) for _ in downloaded_sites]
+    site_samples = [[([""], [""], -1)] for _ in downloaded_sites]
     for i, site_name in enumerate(downloaded_sites):
         site = S2VSite(
             site_name=site_name,
@@ -307,8 +307,8 @@ def create_train_test_split(
             download_dir=data_dir,
             device="cpu",
         )
-        all_samples[i] = site.samples
-    all_samples = list(itertools.chain(*all_samples))
+        site_samples[i] = site.samples
+    all_samples: list[Sample] = sorted(itertools.chain.from_iterable(site_samples))
 
     # Reorder all samples
     if seed == -1:
