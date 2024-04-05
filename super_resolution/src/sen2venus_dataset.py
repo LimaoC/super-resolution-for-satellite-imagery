@@ -283,7 +283,6 @@ def create_train_test_split(
     Returns:
         (Optional[tuple[PatchData, PatchData]]): train dataset, test dataset tuple.
     """
-    # Gather paths
     data_dir_path = pathlib.Path(data_dir)
     downloaded_sites = _get_downloaded_sites(data_dir_path)
     all_sites = sites if sites else set(site_name for site_name, _ in S2VSites.SITES)
