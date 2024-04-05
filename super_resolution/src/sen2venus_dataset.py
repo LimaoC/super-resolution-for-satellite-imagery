@@ -6,6 +6,10 @@ REF: https://github.com/piclem/sen2venus-pytorch-dataset/blob/main/sen2venus/dat
 """
 
 import os
+import pathlib
+from typing import Optional
+
+import tqdm
 import torch
 from torch.utils.data import Dataset
 from torchvision.datasets.utils import download_url
@@ -121,7 +125,7 @@ class S2VSite(Dataset):
         # the first three fields in each filename (site name, mgrs tile, acquisition
         # date).
         pt_files = [f for f in os.listdir(self.dataset_path) if f.endswith(".pt")]
-        pair_ids = ["_".join(f.split("_")[:-2]) for f in pt_files]
+        pair_ids = set("_".join(f.split("_")[:-2]) for f in pt_files)
 
         for id in pair_ids:
             # Reconstruct the input and output file names from the pair ids
@@ -137,6 +141,7 @@ class S2VSite(Dataset):
             # Work out how many patches are in this pair; use this to keep track of the
             # total number of patches.
             num_patches = torch.load(input_files[0]).size(0)
+            print(num_patches)
             for batch_pos in range(num_patches):
                 self.samples.append((input_files, target_files, batch_pos))
             self.total_samples += num_patches
@@ -219,3 +224,53 @@ class S2VSite(Dataset):
         if not self.is_extracted():
             with py7zr.SevenZipFile(self.download_dir + zip_name, mode="r") as zip:
                 zip.extractall(self.download_dir)
+
+
+def create_all_train_test(
+    data_dir: str, seed: int = -1
+) -> Optional[tuple[Dataset, Dataset]]:
+
+    data_dir_path = pathlib.Path(data_dir)
+    downloaded_sites = set(
+        path.stem for path in data_dir_path.iterdir() if path.is_dir()
+    )
+    all_sites = set(site_name for site_name, _ in S2VSites.SITES)
+    missing = all_sites - downloaded_sites
+
+    if len(missing) != 0 and not _check_to_download(len(all_sites), len(missing)):
+        return
+
+    # Download missing site data
+    for site_name, _ in tqdm.tqdm(S2VSites.SITES, ncols=100):
+        if site_name not in missing:
+            continue
+
+        S2VSite(
+            site_name=site_name,
+            bands="rgbnir",
+            download_dir=data_dir,
+            device="cpu",
+        )
+
+    # Gather all pytorch files
+    all_files = list(data_dir_path.glob("**.pt"))
+    all_files.sort()
+
+    # Find number of patches in each pytorch file
+    pt_files = [f for f in os.listdir(self.dataset_path) if f.endswith(".pt")]
+    pair_ids = ["_".join(f.split("_")[:-2]) for f in pt_files]
+
+    # num_patches = [None for _ in all_files]
+    # for i, file in all_files:
+
+    return None
+
+
+def _check_to_download(total: int, num_missing: int) -> bool:
+    return (
+        input(
+            f"Missing {num_missing}/{total} sites data."
+            "Would you like to download now? (Y/y) for yes."
+        )
+        in "yY"
+    )
