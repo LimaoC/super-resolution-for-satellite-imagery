@@ -271,7 +271,7 @@ def download_all_site_data(download_dir: str) -> None:
 
 def create_train_test_split(
     data_dir: str, seed: int = -1, sites: Optional[set[str]] = None
-) -> Optional[tuple[PatchData, PatchData]]:
+) -> tuple[PatchData, PatchData]:
     """Create train-test split using all satellite data.
 
     Parameters:
