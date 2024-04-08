@@ -330,6 +330,6 @@ def _check_to_download(total: int, num_missing: int) -> bool:
 
 
 def _get_downloaded_sites(data_dir: pathlib.Path) -> set[str]:
-    available_sites = S2VSites.SITES
+    available_sites = set(site_name for site_name, _ in S2VSites.SITES)
     downloaded_sites = set(path.stem for path in data_dir.iterdir() if path.is_dir())
     return available_sites & downloaded_sites
