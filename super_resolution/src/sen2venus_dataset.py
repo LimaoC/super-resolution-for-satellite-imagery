@@ -229,3 +229,115 @@ class S2VSite(Dataset):
         if not self.is_extracted():
             with py7zr.SevenZipFile(self.download_dir + zip_name, mode="r") as zip:
                 zip.extractall(self.download_dir)
+
+
+class PatchData(Dataset):
+    """Dataset for storing patch file data."""
+
+    def __init__(self, samples: list[Sample], device: torch.device | str = "cpu"):
+        """
+        Parameters:
+            samples (list[Sample]): Patch samples.
+            device: (torch.device | str): Device to load tensors to. Default is cpu.
+        """
+        self.samples = samples
+        self.device = device
+
+    def __len__(self) -> int:
+        return len(self.samples)
+
+    def __getitem__(self, index: int) -> tuple[torch.Tensor, torch.Tensor]:
+        input_files, target_files, pos = self.samples[index]
+
+        input_tensor = (
+            torch.load(input_files[0], map_location=self.device)[pos] / S2VSite.SCALE
+        )
+        target_tensor = (
+            torch.load(target_files[0], map_location=self.device)[pos] / S2VSite.SCALE
+        )
+
+        return input_tensor, target_tensor
+
+
+def download_all_site_data(download_dir: str) -> None:
+    """Download and extracts all site data into the given download directory."""
+    for site_name, _ in S2VSites.SITES:
+        print(f"Downloading site {site_name}")
+        S2VSite(
+            site_name=site_name,
+            bands="rgbnir",
+            download_dir=download_dir,
+            device="cpu",
+        )
+
+
+def create_train_test_split(
+    data_dir: str,
+    seed: int = -1,
+    sites: Optional[set[str]] = None,
+    device: torch.device | str = "cpu",
+) -> tuple[PatchData, PatchData]:
+    """Create train-test split using all satellite data.
+
+    Parameters:
+        data_dir (str): Directory where all site data is downloaded.
+        seed (int): Seed to randomly shuffle data. Default is -1 which uses canonical ordering.
+        sites (Optional[set[str]]): Set of sites to create split from. Default is None which
+            creates split from all sites.
+        device: (torch.device | str): Device to load tensors to. Default is cpu.
+
+    Returns:
+        (Optional[tuple[PatchData, PatchData]]): train dataset, test dataset tuple.
+    """
+    data_dir_path = pathlib.Path(data_dir)
+    downloaded_sites = _get_downloaded_sites(data_dir_path)
+    all_sites = sites if sites else set(site_name for site_name, _ in S2VSites.SITES)
+    missing = all_sites - downloaded_sites
+
+    # Download if required
+    if len(missing) != 0 and _check_to_download(len(all_sites), len(missing)):
+        download_all_site_data(data_dir)
+    sites = _get_downloaded_sites(data_dir_path) & all_sites
+
+    # Gather all samples
+    site_samples = [[([""], [""], -1)] for _ in sites]
+    for i, site_name in enumerate(sites):
+        site = S2VSite(
+            site_name=site_name,
+            bands="rgbnir",
+            download_dir=data_dir,
+            device="cpu",
+        )
+        site_samples[i] = site.samples
+    all_samples = sorted(itertools.chain.from_iterable(site_samples))
+
+    # Reorder all samples
+    if seed == -1:
+        raise NotImplementedError(
+            "Canonical order not available yet. Please provide a seed."
+        )
+        all_samples = [all_samples[i] for i in CANONICAL_ORDER]
+    else:
+        random.seed(seed)
+        random.shuffle(all_samples)
+
+    cut_off = int(TRAIN_PROPORTION * len(all_samples))
+    train_patches = PatchData(all_samples[:cut_off], device=device)
+    test_patches = PatchData(all_samples[cut_off:], device=device)
+    return train_patches, test_patches
+
+
+def _check_to_download(total: int, num_missing: int) -> bool:
+    response = ""
+    while len(response) != 1 or response not in "YyNn":
+        response = input(
+            f"Missing {num_missing}/{total} sites data."
+            " Would you like to download now? Yes (Y/y) or no (N/n)"
+        )
+    return response in "yY"
+
+
+def _get_downloaded_sites(data_dir: pathlib.Path) -> set[str]:
+    available_sites = set(site_name for site_name, _ in S2VSites.SITES)
+    downloaded_sites = set(path.stem for path in data_dir.iterdir() if path.is_dir())
+    return available_sites & downloaded_sites
