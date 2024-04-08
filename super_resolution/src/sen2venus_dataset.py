@@ -234,12 +234,14 @@ class S2VSite(Dataset):
 class PatchData(Dataset):
     """Dataset for storing patch file data."""
 
-    def __init__(self, samples: list[Sample]):
+    def __init__(self, samples: list[Sample], device: torch.device | str = "cpu"):
         """
         Parameters:
             samples (list[Sample]): Patch samples.
+            device: (torch.device | str): Device to load tensors to. Default is cpu.
         """
         self.samples = samples
+        self.device = device
 
     def __len__(self) -> int:
         return len(self.samples)
@@ -248,10 +250,10 @@ class PatchData(Dataset):
         input_files, target_files, pos = self.samples[index]
 
         input_tensor = (
-            torch.load(input_files[0], map_location="cpu")[pos] / S2VSite.SCALE
+            torch.load(input_files[0], map_location=self.device)[pos] / S2VSite.SCALE
         )
         target_tensor = (
-            torch.load(target_files[0], map_location="cpu")[pos] / S2VSite.SCALE
+            torch.load(target_files[0], map_location=self.device)[pos] / S2VSite.SCALE
         )
 
         return input_tensor, target_tensor
@@ -270,7 +272,10 @@ def download_all_site_data(download_dir: str) -> None:
 
 
 def create_train_test_split(
-    data_dir: str, seed: int = -1, sites: Optional[set[str]] = None
+    data_dir: str,
+    seed: int = -1,
+    sites: Optional[set[str]] = None,
+    device: torch.device | str = "cpu",
 ) -> tuple[PatchData, PatchData]:
     """Create train-test split using all satellite data.
 
@@ -279,6 +284,7 @@ def create_train_test_split(
         seed (int): Seed to randomly shuffle data. Default is -1 which uses canonical ordering.
         sites (Optional[set[str]]): Set of sites to create split from. Default is None which
             creates split from all sites.
+        device: (torch.device | str): Device to load tensors to. Default is cpu.
 
     Returns:
         (Optional[tuple[PatchData, PatchData]]): train dataset, test dataset tuple.
@@ -316,7 +322,9 @@ def create_train_test_split(
         random.shuffle(all_samples)
 
     cut_off = int(TRAIN_PROPORTION * len(all_samples))
-    return PatchData(all_samples[:cut_off]), PatchData(all_samples[cut_off:])
+    train_patches = PatchData(all_samples[:cut_off], device=device)
+    test_patches = PatchData(all_samples[cut_off:], device=device)
+    return train_patches, test_patches
 
 
 def _check_to_download(total: int, num_missing: int) -> bool:
