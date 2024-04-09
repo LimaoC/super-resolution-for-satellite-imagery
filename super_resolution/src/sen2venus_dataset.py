@@ -16,6 +16,7 @@ from torch.utils.data import Dataset
 from torchvision.datasets.utils import download_url
 
 TRAIN_PROPORTION = 0.7
+VAL_PROPORTION = 0.5
 CANONICAL_ORDER = ()  # TODO(mitch): Generate canonical order.
 
 Sample = tuple[list[str], list[str], int]
@@ -277,7 +278,7 @@ def create_train_test_split(
     sites: Optional[set[str]] = None,
     device: torch.device | str = "cpu",
 ) -> tuple[PatchData, PatchData]:
-    """Create train-test split using all satellite data.
+    """Create train-test split using satellite data.
 
     Parameters:
         data_dir (str): Directory where all site data is downloaded.
@@ -325,6 +326,32 @@ def create_train_test_split(
     train_patches = PatchData(all_samples[:cut_off], device=device)
     test_patches = PatchData(all_samples[cut_off:], device=device)
     return train_patches, test_patches
+
+
+def create_train_validation_test_split(
+    data_dir: str,
+    seed: int = -1,
+    sites: Optional[set[str]] = None,
+    device: torch.device | str = "cpu",
+) -> tuple[PatchData, PatchData, PatchData]:
+    """Create train-validation-test split using satellite data.
+
+    Parameters:
+        data_dir (str): Directory where all site data is downloaded.
+        seed (int): Seed to randomly shuffle data. Default is -1 which uses canonical ordering.
+        sites (Optional[set[str]]): Set of sites to create split from. Default is None which
+            creates split from all sites.
+        device: (torch.device | str): Device to load tensors to. Default is cpu.
+
+    Returns:
+        (Optional[tuple[PatchData, PatchData, PatchData]]): train dataset, validation dataset,
+        test dataset tuple.
+    """
+    train, test = create_train_test_split(
+        data_dir, seed=seed, sites=sites, device=device
+    )
+    cut_off = int(VAL_PROPORTION * len(test.samples))
+    return (train, PatchData(test.samples[:cut_off]), PatchData(test.samples[cut_off:]))
 
 
 def _check_to_download(total: int, num_missing: int) -> bool:
