@@ -2,6 +2,7 @@
 STAT3007 2024 Semester 1 Group Project
 
 ## Setting up the environment
+### General environment
 *Note you may need to substitue "python" with "python3" or "py" in the following commands depending on your Python installation*
 
 After cloning the repo navigate to its location, for example 
@@ -39,6 +40,29 @@ To deactivate the virtual environment when done, use
 deactivate
 ```
 
+### Developing for getafix
+Software available on getafix should be considered during implementation of training-critical code. To set up an environment for getafix development we will use an installation of conda to handle python versions. Recommended is to use miniconda which can be installed [here](https://docs.anaconda.com/free/miniconda/miniconda-install/). 
+
+Once conda is installed we want to create an environment with python version 3.9.18 which is installed on getafix. 
+```bash
+conda create -n getafix_env python=3.9.18
+```
+Activate the environment
+```bash
+conda activate getafix_env
+```
+Install requirements from the getafix_requirement.txt file with pip.
+```bash
+pip install -r getafix_requirements.txt
+```
+Navigate to our repo location and install our package in edit mode.
+```bash
+pip install -e .
+```
+When finished implementing code for getafix, the environment can be deactivated
+```bash 
+conda deactivate
+```
 ## Using getafix 
 
 To access the cluster, ssh in with 
