@@ -5,8 +5,10 @@ Inspired by the below implementation
 REF: https://github.com/piclem/sen2venus-pytorch-dataset/blob/main/sen2venus/dataset/sen2venus.py
 """
 
+import warnings
 import itertools
 import os
+import sys
 import pathlib
 import random
 from typing import Optional, Union
@@ -14,6 +16,13 @@ from typing import Optional, Union
 import torch
 from torch.utils.data import Dataset
 from torchvision.datasets.utils import download_url
+
+try:
+    import py7zr
+except ImportError:
+    warnings.warn(
+        "Unable to import py7zr, data download functionality disabled", ImportWarning
+    )
 
 TRAIN_PROPORTION = 0.7
 VAL_PROPORTION = 0.5
@@ -216,7 +225,8 @@ class S2VSite(Dataset):
         Attempts to download and extract the dataset. Does not re-download nor
         re-extract if the zip and files (respectively) already exist.
         """
-        import py7zr
+        if "py7zr" not in sys.modules:
+            raise ImportError("py7zr was not imported.")
 
         zip_name = self.site_name + ".7z"
 
@@ -359,7 +369,7 @@ def _check_to_download(total: int, num_missing: int) -> bool:
     while len(response) != 1 or response not in "YyNn":
         response = input(
             f"Missing {num_missing}/{total} sites data."
-            " Would you like to download now? Yes (Y/y) or no (N/n)"
+            " Would you like to download now? Yes (Y/y) or no (N/n): "
         )
     return response in "yY"
 
