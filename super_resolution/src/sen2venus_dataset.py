@@ -9,7 +9,7 @@ import itertools
 import os
 import pathlib
 import random
-from typing import Optional
+from typing import Optional, Union
 
 import torch
 from torch.utils.data import Dataset
@@ -235,7 +235,7 @@ class S2VSite(Dataset):
 class PatchData(Dataset):
     """Dataset for storing patch file data."""
 
-    def __init__(self, samples: list[Sample], device: torch.device | str = "cpu"):
+    def __init__(self, samples: list[Sample], device: Union[torch.device, str] = "cpu"):
         """
         Parameters:
             samples (list[Sample]): Patch samples.
@@ -276,7 +276,7 @@ def create_train_test_split(
     data_dir: str,
     seed: int = -1,
     sites: Optional[set[str]] = None,
-    device: torch.device | str = "cpu",
+    device: Union[torch.device, str] = "cpu",
 ) -> tuple[PatchData, PatchData]:
     """Create train-test split using satellite data.
 
@@ -332,7 +332,7 @@ def create_train_validation_test_split(
     data_dir: str,
     seed: int = -1,
     sites: Optional[set[str]] = None,
-    device: torch.device | str = "cpu",
+    device: Union[torch.device, str] = "cpu",
 ) -> tuple[PatchData, PatchData, PatchData]:
     """Create train-validation-test split using satellite data.
 
