@@ -81,7 +81,7 @@ feature_extractor_net_cfgs: Dict[str, List[Union[str, int]]] = {
 
 def _make_layers(net_cfg_name: str, batch_norm: bool = False) -> nn.Sequential:
     net_cfg = feature_extractor_net_cfgs[net_cfg_name]
-    layers: nn.Sequential[nn.Module] = nn.Sequential()
+    layers = nn.Sequential()
     in_channels = 3
     for v in net_cfg:
         if v == "M":
