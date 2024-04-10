@@ -225,8 +225,10 @@ class S2VSite(Dataset):
         Attempts to download and extract the dataset. Does not re-download nor
         re-extract if the zip and files (respectively) already exist.
         """
-        if "py7zr" not in sys.modules:
-            raise ImportError("py7zr was not imported.")
+        if not self.is_extracted() and "py7zr" not in sys.modules:
+            raise ImportError(
+                "py7zr was not imported please ensure library is installed."
+            )
 
         zip_name = self.site_name + ".7z"
 
