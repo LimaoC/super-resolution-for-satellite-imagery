@@ -9,5 +9,5 @@
 #SBATCH --exclude=smp-6-[5,6]
 
 module load pytorch 
-python 3 -m pip install --user -e .
+python3 -m pip install --user -e .
 python3 scripts/torch_test.py 
