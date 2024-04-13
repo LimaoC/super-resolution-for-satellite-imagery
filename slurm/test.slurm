@@ -9,4 +9,4 @@
 #SBATCH --exclude=smp-6-[5,6]
 
 module load pytorch 
-python3 ../torch_test.py 
+python3 scripts/torch_test.py 
