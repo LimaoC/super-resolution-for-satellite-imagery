@@ -11,6 +11,8 @@ import os
 import sys
 import pathlib
 import random
+import pickle
+from importlib import resources
 from typing import Optional, Union
 
 import torch
@@ -26,7 +28,9 @@ except ImportError:
 
 TRAIN_PROPORTION = 0.7
 VAL_PROPORTION = 0.5
-CANONICAL_ORDER = ()  # TODO(mitch): Generate canonical order.
+CANONICAL_ORDER_RESOURCE = resources.files("super_resolution.resources").joinpath(
+    "canonical_order.pkl"
+)
 
 Sample = tuple[list[str], list[str], int]
 
@@ -326,10 +330,8 @@ def create_train_test_split(
 
     # Reorder all samples
     if seed == -1:
-        raise NotImplementedError(
-            "Canonical order not available yet. Please provide a seed."
-        )
-        all_samples = [all_samples[i] for i in CANONICAL_ORDER]
+        canonical_order = _load_canonical_order()
+        all_samples = [all_samples[i] for i in canonical_order if i < len(all_samples)]
     else:
         random.seed(seed)
         random.shuffle(all_samples)
@@ -363,7 +365,11 @@ def create_train_validation_test_split(
         data_dir, seed=seed, sites=sites, device=device
     )
     cut_off = int(VAL_PROPORTION * len(test.samples))
-    return (train, PatchData(test.samples[:cut_off]), PatchData(test.samples[cut_off:]))
+    return (
+        train,
+        PatchData(test.samples[:cut_off], device=device),
+        PatchData(test.samples[cut_off:], device=device),
+    )
 
 
 def _check_to_download(total: int, num_missing: int) -> bool:
@@ -380,3 +386,8 @@ def _get_downloaded_sites(data_dir: pathlib.Path) -> set[str]:
     available_sites = set(site_name for site_name, _ in S2VSites.SITES)
     downloaded_sites = set(path.stem for path in data_dir.iterdir() if path.is_dir())
     return available_sites & downloaded_sites
+
+
+def _load_canonical_order() -> list[int]:
+    buffer = CANONICAL_ORDER_RESOURCE.read_bytes()
+    return pickle.loads(buffer)
