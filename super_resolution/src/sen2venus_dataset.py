@@ -168,31 +168,21 @@ class S2VSite(Dataset):
         input_files, target_files, pos = self.samples[index]
 
         if self.bands == "rgbnir":
-            input_tensor = (
-                torch.load(input_files[0], map_location=self.device)[pos] / self.SCALE
-            )
-            target_tensor = (
-                torch.load(target_files[0], map_location=self.device)[pos] / self.SCALE
-            )
+            input_tensor = _load_sen2venus_tensor(input_files[0], pos, self.device)
+            target_tensor = _load_sen2venus_tensor(target_files[0], pos, self.device)
         elif self.bands == "edgenir":
-            input_tensor = (
-                torch.load(input_files[1], map_location=self.device)[pos] / self.SCALE
-            )
-            target_tensor = (
-                torch.load(target_files[1], map_location=self.device)[pos] / self.SCALE
-            )
+            input_tensor = _load_sen2venus_tensor(input_files[1], pos, self.device)
+            target_tensor = _load_sen2venus_tensor(target_files[1], pos, self.device)
         else:
             # The Sentinel-2 EDGENIR bands are 20m in resolution, so we need to upscale
             # them to the 10m RGBNIR bands. We do this with bicubic interpolation
             input_tensor = torch.concat(
                 (
-                    torch.load(input_files[0], map_location=self.device)[pos]
-                    / self.SCALE,
+                    _load_sen2venus_tensor(input_files[0], pos, self.device),
                     torch.nn.functional.interpolate(
-                        torch.load(input_files[1], map_location=self.device)[
-                            pos
-                        ].unsqueeze(0)
-                        / self.SCALE,
+                        _load_sen2venus_tensor(
+                            input_files[1], pos, self.device
+                        ).unsqueeze(0),
                         scale_factor=(2, 2),
                         mode="bicubic",
                     ).squeeze(0),
@@ -201,10 +191,8 @@ class S2VSite(Dataset):
             )
             target_tensor = torch.concat(
                 (
-                    torch.load(target_files[0], map_location=self.device)[pos]
-                    / self.SCALE,
-                    torch.load(target_files[1], map_location=self.device)[pos]
-                    / self.SCALE,
+                    _load_sen2venus_tensor(target_files[0], pos, self.device),
+                    _load_sen2venus_tensor(target_files[1], pos, self.device),
                 ),
                 dim=0,
             )
@@ -262,12 +250,8 @@ class PatchData(Dataset):
     def __getitem__(self, index: int) -> tuple[torch.Tensor, torch.Tensor]:
         input_files, target_files, pos = self.samples[index]
 
-        input_tensor = (
-            torch.load(input_files[0], map_location=self.device)[pos] / S2VSite.SCALE
-        )
-        target_tensor = (
-            torch.load(target_files[0], map_location=self.device)[pos] / S2VSite.SCALE
-        )
+        input_tensor = _load_sen2venus_tensor(input_files[0], pos, self.device)
+        target_tensor = _load_sen2venus_tensor(target_files[0], pos, self.device)
 
         return input_tensor, target_tensor
 
@@ -380,3 +364,9 @@ def _get_downloaded_sites(data_dir: pathlib.Path) -> set[str]:
     available_sites = set(site_name for site_name, _ in S2VSites.SITES)
     downloaded_sites = set(path.stem for path in data_dir.iterdir() if path.is_dir())
     return available_sites & downloaded_sites
+
+
+def _load_sen2venus_tensor(
+    file: str, pos: int, device: Union[torch.device, str]
+) -> torch.Tensor:
+    return torch.load(file, map_location=device)[pos] / S2VSite.SCALE
