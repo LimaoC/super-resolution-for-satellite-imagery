@@ -34,6 +34,20 @@ CANONICAL_ORDER = ()  # TODO(mitch): Generate canonical order.
 Sample = tuple[list[str], list[str], int]
 
 
+def default_patch_transform(patch: torch.Tensor) -> torch.Tensor:
+    """Scales patch data to the range [0, 1].
+
+    Parameters:
+        patch (torch.Tensor): The patch to scale.
+
+    Returns:
+        (torch.Tensor): The transformed patch.
+    """
+    min_val = patch.min()
+    max_val = patch.max()
+    return (patch - min_val) / (max_val - min_val)
+
+
 class S2VSites:
     """Dataclass for the SEN2VENµS sites"""
 
@@ -366,20 +380,6 @@ def create_train_validation_test_split(
     )
     cut_off = int(VAL_PROPORTION * len(test.samples))
     return (train, PatchData(test.samples[:cut_off]), PatchData(test.samples[cut_off:]))
-
-
-def default_patch_transform(patch: torch.Tensor) -> torch.Tensor:
-    """Scales patch data to the range [0, 1].
-
-    Parameters:
-        patch (torch.Tensor): The patch to scale.
-
-    Returns:
-        (torch.Tensor): The transformed patch.
-    """
-    min_val = patch.min()
-    max_val = patch.max()
-    return (patch - min_val) / (max_val - min_val)
 
 
 def _check_to_download(total: int, num_missing: int) -> bool:
