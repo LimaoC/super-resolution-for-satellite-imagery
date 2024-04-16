@@ -5,13 +5,15 @@ Inspired by the below implementation
 REF: https://github.com/piclem/sen2venus-pytorch-dataset/blob/main/sen2venus/dataset/sen2venus.py
 """
 
+from __future__ import annotations
+
 import warnings
 import itertools
 import os
 import sys
 import pathlib
 import random
-from typing import Optional, Union
+from typing import Optional, Union, Callable
 
 import torch
 from torch.utils.data import Dataset
@@ -23,6 +25,7 @@ except ImportError:
     warnings.warn(
         "Unable to import py7zr, data download functionality disabled", ImportWarning
     )
+
 
 TRAIN_PROPORTION = 0.7
 VAL_PROPORTION = 0.5
@@ -235,14 +238,21 @@ class S2VSite(Dataset):
 class PatchData(Dataset):
     """Dataset for storing patch file data."""
 
-    def __init__(self, samples: list[Sample], device: Union[torch.device, str] = "cpu"):
+    def __init__(
+        self,
+        samples: list[Sample],
+        device: Union[torch.device, str] = "cpu",
+        transform: Callable = default_patch_transform,
+    ):
         """
         Parameters:
             samples (list[Sample]): Patch samples.
-            device: (torch.device | str): Device to load tensors to. Default is cpu.
+            device (torch.device | str): Device to load tensors to. Default is cpu.
+            transform (callable): Transform to apply to each patch before getting.
         """
         self.samples = samples
         self.device = device
+        self._transform = transform
 
     def __len__(self) -> int:
         return len(self.samples)
@@ -250,10 +260,18 @@ class PatchData(Dataset):
     def __getitem__(self, index: int) -> tuple[torch.Tensor, torch.Tensor]:
         input_files, target_files, pos = self.samples[index]
 
-        input_tensor = _load_sen2venus_tensor(input_files[0], pos, self.device)
-        target_tensor = _load_sen2venus_tensor(target_files[0], pos, self.device)
+        input_tensor = self._transform(
+            _load_sen2venus_tensor(input_files[0], pos, self.device)
+        )
+        target_tensor = self._transform(
+            _load_sen2venus_tensor(target_files[0], pos, self.device)
+        )
 
         return input_tensor, target_tensor
+
+    def set_transform(self, transform: Callable) -> None:
+        """Set the patch transform."""
+        self._transform = transform
 
 
 def download_all_site_data(download_dir: str) -> None:
@@ -348,6 +366,20 @@ def create_train_validation_test_split(
     )
     cut_off = int(VAL_PROPORTION * len(test.samples))
     return (train, PatchData(test.samples[:cut_off]), PatchData(test.samples[cut_off:]))
+
+
+def default_patch_transform(patch: torch.Tensor) -> torch.Tensor:
+    """Scales patch data to the range [0, 1].
+
+    Parameters:
+        patch (torch.Tensor): The patch to scale.
+
+    Returns:
+        (torch.Tensor): The transformed patch.
+    """
+    min_val = patch.min()
+    max_val = patch.max()
+    return (patch - min_val) / (max_val - min_val)
 
 
 def _check_to_download(total: int, num_missing: int) -> bool:
