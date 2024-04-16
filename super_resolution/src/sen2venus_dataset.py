@@ -32,21 +32,7 @@ VAL_PROPORTION = 0.5
 CANONICAL_ORDER = ()  # TODO(mitch): Generate canonical order.
 
 Sample = tuple[list[str], list[str], int]
-
-
-def default_patch_transform(patch: torch.Tensor) -> torch.Tensor:
-    """Scales patch data to the range [0, 1].
-
-    Parameters:
-        patch (torch.Tensor): The patch to scale.
-
-    Returns:
-        (torch.Tensor): The transformed patch.
-    """
-    patch = patch[:RGB_DIMS, :, :]
-    min_val = patch.min()
-    max_val = patch.max()
-    return (patch - min_val) / (max_val - min_val)
+Transform = Callable[[torch.Tensor, torch.Tensor], tuple[torch.Tensor, torch.Tensor]]
 
 
 class S2VSites:
@@ -250,6 +236,23 @@ class S2VSite(Dataset):
                 zip.extractall(self.download_dir)
 
 
+def _scale_patch(patch: torch.Tensor) -> torch.Tensor:
+    # min_val = torch.amin(patch, (1, 2)).reshape((patch.shape[0], 1, 1))
+    # max_val = torch.amax(patch, (1, 2)).reshape((patch.shape[0], 1, 1))
+    min_val = patch.min()
+    max_val = patch.max()
+    return (patch - min_val) / (max_val - min_val)
+
+
+def _default_patch_transform(
+    low_res_patch: torch.Tensor, high_res_patch: torch.Tensor
+) -> tuple[torch.Tensor, torch.Tensor]:
+    return (
+        _scale_patch(low_res_patch[:RGB_DIMS, :, :]),
+        _scale_patch(high_res_patch[:RGB_DIMS, :, :]),
+    )
+
+
 class PatchData(Dataset):
     """Dataset for storing patch file data."""
 
@@ -257,7 +260,7 @@ class PatchData(Dataset):
         self,
         samples: list[Sample],
         device: Union[torch.device, str] = "cpu",
-        transform: Callable[[torch.Tensor], torch.Tensor] = default_patch_transform,
+        transform: Transform = _default_patch_transform,
     ):
         """
         Parameters:
@@ -275,16 +278,14 @@ class PatchData(Dataset):
     def __getitem__(self, index: int) -> tuple[torch.Tensor, torch.Tensor]:
         input_files, target_files, pos = self.samples[index]
 
-        input_tensor = self._transform(
-            _load_sen2venus_tensor(input_files[0], pos, self.device)
-        )
-        target_tensor = self._transform(
-            _load_sen2venus_tensor(target_files[0], pos, self.device)
+        input_tensor, target_tensor = self._transform(
+            _load_sen2venus_tensor(input_files[0], pos, self.device),
+            _load_sen2venus_tensor(target_files[0], pos, self.device),
         )
 
         return input_tensor, target_tensor
 
-    def set_transform(self, transform: Callable[[torch.Tensor], torch.Tensor]) -> None:
+    def set_transform(self, transform: Transform) -> None:
         """Set the patch transform."""
         self._transform = transform
 
