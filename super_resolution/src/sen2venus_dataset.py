@@ -26,7 +26,7 @@ except ImportError:
         "Unable to import py7zr, data download functionality disabled", ImportWarning
     )
 
-
+RGB_DIMS = 3
 TRAIN_PROPORTION = 0.7
 VAL_PROPORTION = 0.5
 CANONICAL_ORDER = ()  # TODO(mitch): Generate canonical order.
@@ -43,6 +43,7 @@ def default_patch_transform(patch: torch.Tensor) -> torch.Tensor:
     Returns:
         (torch.Tensor): The transformed patch.
     """
+    patch = patch[:RGB_DIMS, :, :]
     min_val = patch.min()
     max_val = patch.max()
     return (patch - min_val) / (max_val - min_val)
@@ -256,7 +257,7 @@ class PatchData(Dataset):
         self,
         samples: list[Sample],
         device: Union[torch.device, str] = "cpu",
-        transform: Callable = default_patch_transform,
+        transform: Callable[[torch.Tensor], torch.Tensor] = default_patch_transform,
     ):
         """
         Parameters:
@@ -283,7 +284,7 @@ class PatchData(Dataset):
 
         return input_tensor, target_tensor
 
-    def set_transform(self, transform: Callable) -> None:
+    def set_transform(self, transform: Callable[[torch.Tensor], torch.Tensor]) -> None:
         """Set the patch transform."""
         self._transform = transform
 
