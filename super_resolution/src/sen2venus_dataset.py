@@ -13,6 +13,8 @@ import os
 import sys
 import pathlib
 import random
+import pickle
+from importlib import resources
 from typing import Optional, Union, Callable
 
 import torch
@@ -29,7 +31,9 @@ except ImportError:
 RGB_DIMS = 3
 TRAIN_PROPORTION = 0.7
 VAL_PROPORTION = 0.5
-CANONICAL_ORDER = ()  # TODO(mitch): Generate canonical order.
+CANONICAL_ORDER_RESOURCE = resources.files("super_resolution.resources").joinpath(
+    "canonical_order.pkl"
+)
 
 Sample = tuple[list[str], list[str], int]
 Transform = Callable[[torch.Tensor, torch.Tensor], tuple[torch.Tensor, torch.Tensor]]
@@ -344,10 +348,8 @@ def create_train_test_split(
 
     # Reorder all samples
     if seed == -1:
-        raise NotImplementedError(
-            "Canonical order not available yet. Please provide a seed."
-        )
-        all_samples = [all_samples[i] for i in CANONICAL_ORDER]
+        canonical_order = _load_canonical_order()
+        all_samples = [all_samples[i] for i in canonical_order if i < len(all_samples)]
     else:
         random.seed(seed)
         random.shuffle(all_samples)
@@ -381,7 +383,11 @@ def create_train_validation_test_split(
         data_dir, seed=seed, sites=sites, device=device
     )
     cut_off = int(VAL_PROPORTION * len(test.samples))
-    return (train, PatchData(test.samples[:cut_off]), PatchData(test.samples[cut_off:]))
+    return (
+        train,
+        PatchData(test.samples[:cut_off], device=device),
+        PatchData(test.samples[cut_off:], device=device),
+    )
 
 
 def _check_to_download(total: int, num_missing: int) -> bool:
@@ -404,3 +410,8 @@ def _load_sen2venus_tensor(
     file: str, pos: int, device: Union[torch.device, str]
 ) -> torch.Tensor:
     return torch.load(file, map_location=device)[pos] / S2VSite.SCALE
+
+
+def _load_canonical_order() -> list[int]:
+    buffer = CANONICAL_ORDER_RESOURCE.read_bytes()
+    return pickle.loads(buffer)
