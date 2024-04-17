@@ -240,12 +240,6 @@ class S2VSite(Dataset):
                 zip.extractall(self.download_dir)
 
 
-def _scale_patch(patch: torch.Tensor) -> torch.Tensor:
-    min_val = patch.min()
-    max_val = patch.max()
-    return (patch - min_val) / (max_val - min_val)
-
-
 def default_patch_transform(
     low_res_patch: torch.Tensor, high_res_patch: torch.Tensor
 ) -> tuple[torch.Tensor, torch.Tensor]:
@@ -423,3 +417,9 @@ def _load_sen2venus_tensor(
 def _load_canonical_order() -> list[int]:
     buffer = CANONICAL_ORDER_RESOURCE.read_bytes()
     return pickle.loads(buffer)
+
+
+def _scale_patch(patch: torch.Tensor) -> torch.Tensor:
+    min_val = patch.min()
+    max_val = patch.max()
+    return (patch - min_val) / (max_val - min_val)
