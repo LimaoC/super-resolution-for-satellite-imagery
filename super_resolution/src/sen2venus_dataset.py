@@ -241,16 +241,24 @@ class S2VSite(Dataset):
 
 
 def _scale_patch(patch: torch.Tensor) -> torch.Tensor:
-    # min_val = torch.amin(patch, (1, 2)).reshape((patch.shape[0], 1, 1))
-    # max_val = torch.amax(patch, (1, 2)).reshape((patch.shape[0], 1, 1))
     min_val = patch.min()
     max_val = patch.max()
     return (patch - min_val) / (max_val - min_val)
 
 
-def _default_patch_transform(
+def default_patch_transform(
     low_res_patch: torch.Tensor, high_res_patch: torch.Tensor
 ) -> tuple[torch.Tensor, torch.Tensor]:
+    """Apply default transform to patches. Remove 4th channel and scale RGB surface reflectant
+
+    Parameters:
+        low_res_patch (torch.Tensor): Low resolution patch
+        high_res_patch (torch.Tensor): High resolution patch
+
+    Returns
+        (tuple[torch.Tensor, torch.Tensor]): The respective transformed low res patch and high res
+            patch.
+    """
     return (
         _scale_patch(low_res_patch[:RGB_DIMS, :, :]),
         _scale_patch(high_res_patch[:RGB_DIMS, :, :]),
@@ -264,7 +272,7 @@ class PatchData(Dataset):
         self,
         samples: list[Sample],
         device: Union[torch.device, str] = "cpu",
-        transform: Transform = _default_patch_transform,
+        transform: Transform = default_patch_transform,
     ):
         """
         Parameters:
