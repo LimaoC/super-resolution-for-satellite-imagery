@@ -254,8 +254,8 @@ def default_patch_transform(
             patch.
     """
     return (
-        _scale_patch(low_res_patch[:RGB_DIMS, :, :]),
-        _scale_patch(high_res_patch[:RGB_DIMS, :, :]),
+        _min_max_scale_patch(low_res_patch[:RGB_DIMS, :, :]),
+        _min_max_scale_patch(high_res_patch[:RGB_DIMS, :, :]),
     )
 
 
@@ -419,7 +419,7 @@ def _load_canonical_order() -> list[int]:
     return pickle.loads(buffer)
 
 
-def _scale_patch(patch: torch.Tensor) -> torch.Tensor:
+def _min_max_scale_patch(patch: torch.Tensor) -> torch.Tensor:
     min_val = patch.min()
     max_val = patch.max()
     return (patch - min_val) / (max_val - min_val)
