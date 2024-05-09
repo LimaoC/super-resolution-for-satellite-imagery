@@ -31,7 +31,7 @@ pip install -e .
 ```
 Start a Jupyter Lab server
 ```bash
-jupyter lab
+v
 ```
 You should now be able to run the notebook at `super_resolution/notebooks/example_notebook.ipynb`.
 
