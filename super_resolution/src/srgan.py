@@ -1,9 +1,12 @@
-"""Adapted from https://github.com/sgrvinod/a-PyTorch-Tutorial-to-Super-Resolution/blob/master/models.py"""
+"""Adapted from 
+https://github.com/sgrvinod/a-PyTorch-Tutorial-to-Super-Resolution/blob/master/models.py
+"""
+
+import math
 
 import torch
-from torch import nn
 import torchvision
-import math
+from torch import nn
 
 
 class ConvolutionalBlock(nn.Module):
@@ -20,24 +23,25 @@ class ConvolutionalBlock(nn.Module):
         batch_norm=False,
         activation=None,
     ):
+        """Initialize a Convolutional Block.
+
+
+        Parameters:
+            in_channels: number of input channels
+            out_channels: number of output channe;s
+            kernel_size: kernel size
+            stride: stride
+            batch_norm: include a BN layer?
+            activation: Type of activation; None if none
         """
-        :param in_channels: number of input channels
-        :param out_channels: number of output channe;s
-        :param kernel_size: kernel size
-        :param stride: stride
-        :param batch_norm: include a BN layer?
-        :param activation: Type of activation; None if none
-        """
-        super(ConvolutionalBlock, self).__init__()
+        super().__init__()
 
         if activation is not None:
             activation = activation.lower()
             assert activation in {"prelu", "leakyrelu", "tanh"}
 
-        # A container that will hold the layers in this convolutional block
-        layers = list()
+        layers = []
 
-        # A convolutional layer
         layers.append(
             nn.Conv2d(
                 in_channels=in_channels,
@@ -48,11 +52,9 @@ class ConvolutionalBlock(nn.Module):
             )
         )
 
-        # A batch normalization (BN) layer, if wanted
         if batch_norm is True:
             layers.append(nn.BatchNorm2d(num_features=out_channels))
 
-        # An activation layer, if wanted
         if activation == "prelu":
             layers.append(nn.PReLU())
         elif activation == "leakyrelu":
@@ -60,7 +62,6 @@ class ConvolutionalBlock(nn.Module):
         elif activation == "tanh":
             layers.append(nn.Tanh())
 
-        # Put together the convolutional block as a sequence of the layers in this container
         self.conv_block = nn.Sequential(*layers)
 
     def forward(self, input):
