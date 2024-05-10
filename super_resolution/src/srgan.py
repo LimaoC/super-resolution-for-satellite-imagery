@@ -14,9 +14,9 @@ class ConvolutionalBlock(nn.Module):
 
     def __init__(
         self,
-        in_channels,
-        out_channels,
-        kernel_size,
+        in_channels: int,
+        out_channels: int,
+        kernel_size: int,
         stride=1,
         batch_norm=False,
         activation=None,
@@ -38,7 +38,7 @@ class ConvolutionalBlock(nn.Module):
             activation = activation.lower()
             assert activation in {"prelu", "leakyrelu", "tanh"}
 
-        layers = []
+        layers: list[nn.Module] = []
 
         layers.append(
             nn.Conv2d(
@@ -62,7 +62,7 @@ class ConvolutionalBlock(nn.Module):
 
         self.conv_block = nn.Sequential(*layers)
 
-    def forward(self, x):
+    def forward(self, x: torch.Tensor):
         """Forward propagation.
 
         Parameters:
@@ -81,7 +81,9 @@ class SubPixelConvolutionalBlock(nn.Module):
     layers.
     """
 
-    def __init__(self, kernel_size=3, n_channels=64, scaling_factor=2):
+    def __init__(
+        self, kernel_size: int = 3, n_channels: int = 64, scaling_factor: int = 2
+    ):
         """
         Parameters:
             kernel_size: kernel size of the convolution
@@ -89,47 +91,49 @@ class SubPixelConvolutionalBlock(nn.Module):
             scaling_factor: factor to scale input images by (along both dimensions)
         """
         super().__init__()
-
-        # A convolutional layer that increases the number of channels by scaling factor^2, followed by pixel shuffle and PReLU
         self.conv = nn.Conv2d(
             in_channels=n_channels,
             out_channels=n_channels * (scaling_factor**2),
             kernel_size=kernel_size,
             padding=kernel_size // 2,
         )
-        # These additional channels are shuffled to form additional pixels, upscaling each dimension by the scaling factor
         self.pixel_shuffle = nn.PixelShuffle(upscale_factor=scaling_factor)
         self.prelu = nn.PReLU()
 
-    def forward(self, x):
+    def forward(self, x: torch.Tensor):
         """
-        Forward propagation.
+        Parameters:
+            input: input images, a tensor of size (N, n_channels, w, h)
 
-        :param input: input images, a tensor of size (N, n_channels, w, h)
-        :return: scaled output images, a tensor of size (N, n_channels, w * scaling factor, h * scaling factor)
+        Returns:
+            scaled output images, a tensor of size
+                (N, n_channels, w * scaling factor, h * scaling factor)
         """
-        output = self.conv(x)  # (N, n_channels * scaling factor^2, w, h)
-        output = self.pixel_shuffle(
-            output
-        )  # (N, n_channels, w * scaling factor, h * scaling factor)
-        output = self.prelu(
-            output
-        )  # (N, n_channels, w * scaling factor, h * scaling factor)
+        # (N, n_channels * scaling factor^2, w, h)
+        output = self.conv(x)
+
+        # (N, n_channels, w * scaling factor, h * scaling factor)
+        output = self.pixel_shuffle(output)
+
+        # (N, n_channels, w * scaling factor, h * scaling factor)
+        output = self.prelu(output)
 
         return output
 
 
 class ResidualBlock(nn.Module):
-    """
-    A residual block, comprising two convolutional blocks with a residual connection across them.
+    """A residual block, comprising two convolutional blocks with a residual connection across
+    them.
     """
 
-    def __init__(self, kernel_size=3, n_channels=64):
+    def __init__(self, kernel_size: int = 3, n_channels: int = 64):
         """
-        :param kernel_size: kernel size
-        :param n_channels: number of input and output channels (same because the input must be added to the output)
+        Parameters:
+            kernel_size: kernel size
+            n_channels: number of input and output channels
+                (same because the input must be added to the output)
         """
-        super(ResidualBlock, self).__init__()
+        super().__init__()
 
         # The first convolutional block
         self.conv_block1 = ConvolutionalBlock(
@@ -149,42 +153,52 @@ class ResidualBlock(nn.Module):
             activation=None,
         )
 
-    def forward(self, input):
+    def forward(self, x: torch.Tensor):
         """
-        Forward propagation.
+        Parameters:
+            input: input images, a tensor of size (N, n_channels, w, h)
+        Returns:
+            (torch.Tensor): output images, a tensor of size (N, n_channels, w, h)
+        """
+        # (N, n_channels, w, h)
+        residual = x
 
-        :param input: input images, a tensor of size (N, n_channels, w, h)
-        :return: output images, a tensor of size (N, n_channels, w, h)
-        """
-        residual = input  # (N, n_channels, w, h)
-        output = self.conv_block1(input)  # (N, n_channels, w, h)
-        output = self.conv_block2(output)  # (N, n_channels, w, h)
-        output = output + residual  # (N, n_channels, w, h)
+        # (N, n_channels, w, h)
+        output = self.conv_block1(x)
+
+        # (N, n_channels, w, h)
+        output = self.conv_block2(output)
+
+        # (N, n_channels, w, h)
+        output = output + residual
 
         return output
 
 
 class SRResNet(nn.Module):
-    """
-    The SRResNet, as defined in the paper.
-    """
+    """The SRResNet, as defined in the paper."""
 
     def __init__(
         self,
-        large_kernel_size=9,
-        small_kernel_size=3,
-        n_channels=64,
-        n_blocks=16,
-        scaling_factor=4,
+        large_kernel_size: int = 9,
+        small_kernel_size: int = 3,
+        n_channels: int = 64,
+        n_blocks: int = 16,
+        scaling_factor: int = 4,
     ):
         """
-        :param large_kernel_size: kernel size of the first and last convolutions which transform the inputs and outputs
-        :param small_kernel_size: kernel size of all convolutions in-between, i.e. those in the residual and subpixel convolutional blocks
-        :param n_channels: number of channels in-between, i.e. the input and output channels for the residual and subpixel convolutional blocks
-        :param n_blocks: number of residual blocks
-        :param scaling_factor: factor to scale input images by (along both dimensions) in the subpixel convolutional block
+        Parameters:
+            large_kernel_size: kernel size of the first and last convolutions which transform the
+                inputs and outputs
+            small_kernel_size: kernel size of all convolutions in-between, i.e. those in the
+                residual and subpixel convolutional blocks
+            n_channels: number of channels in-between, i.e. the input and output channels for the
+                residual and subpixel convolutional blocks
+            n_blocks: number of residual blocks
+            scaling_factor: factor to scale input images by (along both dimensions) in the subpixel
+                convolutional block
         """
-        super(SRResNet, self).__init__()
+        super().__init__()
 
         # Scaling factor must be 2, 4, or 8
         scaling_factor = int(scaling_factor)
