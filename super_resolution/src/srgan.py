@@ -10,9 +10,7 @@ from torch import nn
 
 
 class ConvolutionalBlock(nn.Module):
-    """
-    A convolutional block, comprising convolutional, BN, activation layers.
-    """
+    """A convolutional block, comprising convolutional, BN, activation layers."""
 
     def __init__(
         self,
@@ -64,30 +62,33 @@ class ConvolutionalBlock(nn.Module):
 
         self.conv_block = nn.Sequential(*layers)
 
-    def forward(self, input):
-        """
-        Forward propagation.
+    def forward(self, x):
+        """Forward propagation.
 
-        :param input: input images, a tensor of size (N, in_channels, w, h)
-        :return: output images, a tensor of size (N, out_channels, w, h)
+        Parameters:
+            input: input images, a tensor of size (N, in_channels, w, h)
+
+        Returns:
+            (torch.Tensor): output images, a tensor of size (N, out_channels, w, h)
         """
-        output = self.conv_block(input)  # (N, out_channels, w, h)
+        output = self.conv_block(x)
 
         return output
 
 
 class SubPixelConvolutionalBlock(nn.Module):
-    """
-    A subpixel convolutional block, comprising convolutional, pixel-shuffle, and PReLU activation layers.
+    """A subpixel convolutional block, comprising convolutional, pixel-shuffle, and PReLU activation
+    layers.
     """
 
     def __init__(self, kernel_size=3, n_channels=64, scaling_factor=2):
         """
-        :param kernel_size: kernel size of the convolution
-        :param n_channels: number of input and output channels
-        :param scaling_factor: factor to scale input images by (along both dimensions)
+        Parameters:
+            kernel_size: kernel size of the convolution
+            n_channels: number of input and output channels
+            scaling_factor: factor to scale input images by (along both dimensions)
         """
-        super(SubPixelConvolutionalBlock, self).__init__()
+        super().__init__()
 
         # A convolutional layer that increases the number of channels by scaling factor^2, followed by pixel shuffle and PReLU
         self.conv = nn.Conv2d(
@@ -100,14 +101,14 @@ class SubPixelConvolutionalBlock(nn.Module):
         self.pixel_shuffle = nn.PixelShuffle(upscale_factor=scaling_factor)
         self.prelu = nn.PReLU()
 
-    def forward(self, input):
+    def forward(self, x):
         """
         Forward propagation.
 
         :param input: input images, a tensor of size (N, n_channels, w, h)
         :return: scaled output images, a tensor of size (N, n_channels, w * scaling factor, h * scaling factor)
         """
-        output = self.conv(input)  # (N, n_channels * scaling factor^2, w, h)
+        output = self.conv(x)  # (N, n_channels * scaling factor^2, w, h)
         output = self.pixel_shuffle(
             output
         )  # (N, n_channels, w * scaling factor, h * scaling factor)
