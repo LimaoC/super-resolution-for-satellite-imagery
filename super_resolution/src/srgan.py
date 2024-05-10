@@ -184,7 +184,7 @@ class SRResNet(nn.Module):
         small_kernel_size: int = 3,
         n_channels: int = 64,
         n_blocks: int = 16,
-        scaling_factor: int = 4,
+        scaling_factor: int = 2,
     ):
         """
         Parameters:
@@ -200,11 +200,9 @@ class SRResNet(nn.Module):
         """
         super().__init__()
 
-        # Scaling factor must be 2, 4, or 8
         scaling_factor = int(scaling_factor)
         assert scaling_factor in {2, 4, 8}, "The scaling factor must be 2, 4, or 8!"
 
-        # The first convolutional block
         self.conv_block1 = ConvolutionalBlock(
             in_channels=3,
             out_channels=n_channels,
@@ -213,15 +211,13 @@ class SRResNet(nn.Module):
             activation="PReLu",
         )
 
-        # A sequence of n_blocks residual blocks, each containing a skip-connection across the block
-        self.residual_blocks = nn.Sequential(
-            *[
-                ResidualBlock(kernel_size=small_kernel_size, n_channels=n_channels)
-                for i in range(n_blocks)
-            ]
-        )
+        # Each contains a skip-connection across the block
+        blocks = [
+            ResidualBlock(kernel_size=small_kernel_size, n_channels=n_channels)
+            for _ in range(n_blocks)
+        ]
+        self.residual_blocks = nn.Sequential(*blocks)
 
-        # Another convolutional block
         self.conv_block2 = ConvolutionalBlock(
             in_channels=n_channels,
             out_channels=n_channels,
@@ -230,20 +226,18 @@ class SRResNet(nn.Module):
             activation=None,
         )
 
-        # Upscaling is done by sub-pixel convolution, with each such block upscaling by a factor of 2
+        # Upscaling
         n_subpixel_convolution_blocks = int(math.log2(scaling_factor))
-        self.subpixel_convolutional_blocks = nn.Sequential(
-            *[
-                SubPixelConvolutionalBlock(
-                    kernel_size=small_kernel_size,
-                    n_channels=n_channels,
-                    scaling_factor=2,
-                )
-                for i in range(n_subpixel_convolution_blocks)
-            ]
-        )
+        upscale_blocks = [
+            SubPixelConvolutionalBlock(
+                kernel_size=small_kernel_size,
+                n_channels=n_channels,
+                scaling_factor=2,
+            )
+            for _ in range(n_subpixel_convolution_blocks)
+        ]
+        self.subpixel_convolutional_blocks = nn.Sequential(*upscale_blocks)
 
-        # The last convolutional block
         self.conv_block3 = ConvolutionalBlock(
             in_channels=n_channels,
             out_channels=3,
@@ -254,49 +248,60 @@ class SRResNet(nn.Module):
 
     def forward(self, lr_imgs):
         """
-        Forward prop.
+        Parameters:
+            lr_imgs: low-resolution input images, a tensor of size (N, 3, w, h)
 
-        :param lr_imgs: low-resolution input images, a tensor of size (N, 3, w, h)
-        :return: super-resolution output images, a tensor of size (N, 3, w * scaling factor, h * scaling factor)
+        Returns:
+            (torch.Tensor): super-resolution output images, a tensor of size
+            (N, 3, w * scaling factor, h * scaling factor)
         """
-        output = self.conv_block1(lr_imgs)  # (N, 3, w, h)
-        residual = output  # (N, n_channels, w, h)
-        output = self.residual_blocks(output)  # (N, n_channels, w, h)
-        output = self.conv_block2(output)  # (N, n_channels, w, h)
-        output = output + residual  # (N, n_channels, w, h)
-        output = self.subpixel_convolutional_blocks(
-            output
-        )  # (N, n_channels, w * scaling factor, h * scaling factor)
-        sr_imgs = self.conv_block3(
-            output
-        )  # (N, 3, w * scaling factor, h * scaling factor)
+        # (N, 3, w, h)
+        output = self.conv_block1(lr_imgs)
+
+        # (N, n_channels, w, h)
+        residual = output
+
+        # (N, n_channels, w, h)
+        output = self.residual_blocks(output)
+
+        # (N, n_channels, w, h)
+        output = self.conv_block2(output)
+
+        # (N, n_channels, w, h)
+        output = output + residual
+
+        # (N, n_channels, w * scaling factor, h * scaling factor)
+        output = self.subpixel_convolutional_blocks(output)
+
+        # (N, 3, w * scaling factor, h * scaling factor)
+        sr_imgs = self.conv_block3(output)
 
         return sr_imgs
 
 
 class Generator(nn.Module):
-    """
-    The generator in the SRGAN, as defined in the paper. Architecture identical to the SRResNet.
+    """The generator in the SRGAN, as defined in the paper. Architecture identical to the
+    SRResNet.
     """
 
     def __init__(
         self,
-        large_kernel_size=9,
-        small_kernel_size=3,
-        n_channels=64,
-        n_blocks=16,
-        scaling_factor=4,
+        large_kernel_size: int = 9,
+        small_kernel_size: int = 3,
+        n_channels: int = 64,
+        n_blocks: int = 16,
+        scaling_factor: int = 2,
     ):
         """
-        :param large_kernel_size: kernel size of the first and last convolutions which transform the inputs and outputs
-        :param small_kernel_size: kernel size of all convolutions in-between, i.e. those in the residual and subpixel convolutional blocks
-        :param n_channels: number of channels in-between, i.e. the input and output channels for the residual and subpixel convolutional blocks
-        :param n_blocks: number of residual blocks
-        :param scaling_factor: factor to scale input images by (along both dimensions) in the subpixel convolutional block
+        Parameters:
+            large_kernel_size: kernel size of the first and last convolutions which transform the inputs and outputs
+            small_kernel_size: kernel size of all convolutions in-between, i.e. those in the residual and subpixel convolutional blocks
+            n_channels: number of channels in-between, i.e. the input and output channels for the residual and subpixel convolutional blocks
+            n_blocks: number of residual blocks
+            scaling_factor: factor to scale input images by (along both dimensions) in the subpixel convolutional block
         """
-        super(Generator, self).__init__()
+        super().__init__()
 
-        # The generator is simply an SRResNet, as above
         self.net = SRResNet(
             large_kernel_size=large_kernel_size,
             small_kernel_size=small_kernel_size,
@@ -309,7 +314,8 @@ class Generator(nn.Module):
         """
         Initialize with weights from a trained SRResNet.
 
-        :param srresnet_checkpoint: checkpoint filepath
+        Parameters:
+            srresnet_checkpoint: checkpoint filepath
         """
         srresnet = torch.load(srresnet_checkpoint)["model"]
         self.net.load_state_dict(srresnet.state_dict())
@@ -318,14 +324,15 @@ class Generator(nn.Module):
 
     def forward(self, lr_imgs):
         """
-        Forward prop.
+        Parameters:
+            lr_imgs: low-resolution input images, a tensor of size (N, 3, w, h)
 
-        :param lr_imgs: low-resolution input images, a tensor of size (N, 3, w, h)
-        :return: super-resolution output images, a tensor of size (N, 3, w * scaling factor, h * scaling factor)
+        Returns:
+            super-resolution output images, a tensor of size
+            (N, 3, w * scaling factor, h * scaling factor)
         """
-        sr_imgs = self.net(
-            lr_imgs
-        )  # (N, n_channels, w * scaling factor, h * scaling factor)
+        # (N, n_channels, w * scaling factor, h * scaling factor)
+        sr_imgs = self.net(lr_imgs)
 
         return sr_imgs
 
