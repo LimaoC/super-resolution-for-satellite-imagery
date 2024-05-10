@@ -5,6 +5,8 @@ Inspired by the below implementation
 REF: https://github.com/piclem/sen2venus-pytorch-dataset/blob/main/sen2venus/dataset/sen2venus.py
 """
 
+from __future__ import annotations
+
 import warnings
 import itertools
 import os
@@ -13,7 +15,7 @@ import pathlib
 import random
 import pickle
 from importlib import resources
-from typing import Optional, Union
+from typing import Optional, Union, Callable
 
 import torch
 from torch.utils.data import Dataset
@@ -26,6 +28,7 @@ except ImportError:
         "Unable to import py7zr, data download functionality disabled", ImportWarning
     )
 
+RGB_DIMS = 3
 TRAIN_PROPORTION = 0.7
 VAL_PROPORTION = 0.5
 CANONICAL_ORDER_RESOURCE = resources.files("super_resolution.resources").joinpath(
@@ -33,6 +36,7 @@ CANONICAL_ORDER_RESOURCE = resources.files("super_resolution.resources").joinpat
 )
 
 Sample = tuple[list[str], list[str], int]
+Transform = Callable[[torch.Tensor, torch.Tensor], tuple[torch.Tensor, torch.Tensor]]
 
 
 class S2VSites:
@@ -172,31 +176,21 @@ class S2VSite(Dataset):
         input_files, target_files, pos = self.samples[index]
 
         if self.bands == "rgbnir":
-            input_tensor = (
-                torch.load(input_files[0], map_location=self.device)[pos] / self.SCALE
-            )
-            target_tensor = (
-                torch.load(target_files[0], map_location=self.device)[pos] / self.SCALE
-            )
+            input_tensor = _load_sen2venus_tensor(input_files[0], pos, self.device)
+            target_tensor = _load_sen2venus_tensor(target_files[0], pos, self.device)
         elif self.bands == "edgenir":
-            input_tensor = (
-                torch.load(input_files[1], map_location=self.device)[pos] / self.SCALE
-            )
-            target_tensor = (
-                torch.load(target_files[1], map_location=self.device)[pos] / self.SCALE
-            )
+            input_tensor = _load_sen2venus_tensor(input_files[1], pos, self.device)
+            target_tensor = _load_sen2venus_tensor(target_files[1], pos, self.device)
         else:
             # The Sentinel-2 EDGENIR bands are 20m in resolution, so we need to upscale
             # them to the 10m RGBNIR bands. We do this with bicubic interpolation
             input_tensor = torch.concat(
                 (
-                    torch.load(input_files[0], map_location=self.device)[pos]
-                    / self.SCALE,
+                    _load_sen2venus_tensor(input_files[0], pos, self.device),
                     torch.nn.functional.interpolate(
-                        torch.load(input_files[1], map_location=self.device)[
-                            pos
-                        ].unsqueeze(0)
-                        / self.SCALE,
+                        _load_sen2venus_tensor(
+                            input_files[1], pos, self.device
+                        ).unsqueeze(0),
                         scale_factor=(2, 2),
                         mode="bicubic",
                     ).squeeze(0),
@@ -205,10 +199,8 @@ class S2VSite(Dataset):
             )
             target_tensor = torch.concat(
                 (
-                    torch.load(target_files[0], map_location=self.device)[pos]
-                    / self.SCALE,
-                    torch.load(target_files[1], map_location=self.device)[pos]
-                    / self.SCALE,
+                    _load_sen2venus_tensor(target_files[0], pos, self.device),
+                    _load_sen2venus_tensor(target_files[1], pos, self.device),
                 ),
                 dim=0,
             )
@@ -248,17 +240,43 @@ class S2VSite(Dataset):
                 zip.extractall(self.download_dir)
 
 
+def default_patch_transform(
+    low_res_patch: torch.Tensor, high_res_patch: torch.Tensor
+) -> tuple[torch.Tensor, torch.Tensor]:
+    """Apply default transform to patches. Remove 4th channel and scale RGB surface reflectant
+
+    Parameters:
+        low_res_patch (torch.Tensor): Low resolution patch
+        high_res_patch (torch.Tensor): High resolution patch
+
+    Returns
+        (tuple[torch.Tensor, torch.Tensor]): The respective transformed low res patch and high res
+            patch.
+    """
+    return (
+        _min_max_scale_patch(low_res_patch[:RGB_DIMS, :, :]),
+        _min_max_scale_patch(high_res_patch[:RGB_DIMS, :, :]),
+    )
+
+
 class PatchData(Dataset):
     """Dataset for storing patch file data."""
 
-    def __init__(self, samples: list[Sample], device: Union[torch.device, str] = "cpu"):
+    def __init__(
+        self,
+        samples: list[Sample],
+        device: Union[torch.device, str] = "cpu",
+        transform: Transform = default_patch_transform,
+    ):
         """
         Parameters:
             samples (list[Sample]): Patch samples.
-            device: (torch.device | str): Device to load tensors to. Default is cpu.
+            device (torch.device | str): Device to load tensors to. Default is cpu.
+            transform (callable): Transform to apply to each patch before getting.
         """
         self.samples = samples
         self.device = device
+        self._transform = transform
 
     def __len__(self) -> int:
         return len(self.samples)
@@ -266,14 +284,16 @@ class PatchData(Dataset):
     def __getitem__(self, index: int) -> tuple[torch.Tensor, torch.Tensor]:
         input_files, target_files, pos = self.samples[index]
 
-        input_tensor = (
-            torch.load(input_files[0], map_location=self.device)[pos] / S2VSite.SCALE
-        )
-        target_tensor = (
-            torch.load(target_files[0], map_location=self.device)[pos] / S2VSite.SCALE
+        input_tensor, target_tensor = self._transform(
+            _load_sen2venus_tensor(input_files[0], pos, self.device),
+            _load_sen2venus_tensor(target_files[0], pos, self.device),
         )
 
         return input_tensor, target_tensor
+
+    def set_transform(self, transform: Transform) -> None:
+        """Set the patch transform."""
+        self._transform = transform
 
 
 def download_all_site_data(download_dir: str) -> None:
@@ -388,6 +408,18 @@ def _get_downloaded_sites(data_dir: pathlib.Path) -> set[str]:
     return available_sites & downloaded_sites
 
 
+def _load_sen2venus_tensor(
+    file: str, pos: int, device: Union[torch.device, str]
+) -> torch.Tensor:
+    return torch.load(file, map_location=device)[pos] / S2VSite.SCALE
+
+
 def _load_canonical_order() -> list[int]:
     buffer = CANONICAL_ORDER_RESOURCE.read_bytes()
     return pickle.loads(buffer)
+
+
+def _min_max_scale_patch(patch: torch.Tensor) -> torch.Tensor:
+    min_val = patch.min()
+    max_val = patch.max()
+    return (patch - min_val) / (max_val - min_val)
