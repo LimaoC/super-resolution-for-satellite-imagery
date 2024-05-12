@@ -2,6 +2,7 @@
 https://github.com/sgrvinod/a-PyTorch-Tutorial-to-Super-Resolution/blob/master/models.py
 """
 
+import pathlib
 import math
 
 import torch
@@ -294,11 +295,15 @@ class Generator(nn.Module):
     ):
         """
         Parameters:
-            large_kernel_size: kernel size of the first and last convolutions which transform the inputs and outputs
-            small_kernel_size: kernel size of all convolutions in-between, i.e. those in the residual and subpixel convolutional blocks
-            n_channels: number of channels in-between, i.e. the input and output channels for the residual and subpixel convolutional blocks
+            large_kernel_size: kernel size of the first and last convolutions which transform the
+                inputs and outputs
+            small_kernel_size: kernel size of all convolutions in-between, i.e. those in the
+                residual and subpixel convolutional blocks
+            n_channels: number of channels in-between, i.e. the input and output channels for the
+                residual and subpixel convolutional blocks
             n_blocks: number of residual blocks
-            scaling_factor: factor to scale input images by (along both dimensions) in the subpixel convolutional block
+            scaling_factor: factor to scale input images by (along both dimensions) in the subpixel
+                convolutional block
         """
         super().__init__()
 
@@ -310,7 +315,7 @@ class Generator(nn.Module):
             scaling_factor=scaling_factor,
         )
 
-    def initialize_with_srresnet(self, srresnet_checkpoint):
+    def initialize_with_srresnet(self, srresnet_checkpoint: pathlib.Path):
         """
         Initialize with weights from a trained SRResNet.
 
@@ -322,7 +327,7 @@ class Generator(nn.Module):
 
         print("\nLoaded weights from pre-trained SRResNet.\n")
 
-    def forward(self, lr_imgs):
+    def forward(self, lr_imgs: torch.Tensor):
         """
         Parameters:
             lr_imgs: low-resolution input images, a tensor of size (N, 3, w, h)
@@ -342,14 +347,22 @@ class Discriminator(nn.Module):
     The discriminator in the SRGAN, as defined in the paper.
     """
 
-    def __init__(self, kernel_size=3, n_channels=64, n_blocks=8, fc_size=1024):
+    def __init__(
+        self,
+        kernel_size: int = 3,
+        n_channels: int = 64,
+        n_blocks: int = 8,
+        fc_size: int = 1024,
+    ):
         """
-        :param kernel_size: kernel size in all convolutional blocks
-        :param n_channels: number of output channels in the first convolutional block, after which it is doubled in every 2nd block thereafter
-        :param n_blocks: number of convolutional blocks
-        :param fc_size: size of the first fully connected layer
+        Parameters:
+            kernel_size: kernel size in all convolutional blocks
+            n_channels: number of output channels in the first convolutional block, after which
+                it is doubled in every 2nd block thereafter
+            n_blocks: number of convolutional blocks
+            fc_size: size of the first fully connected layer
         """
-        super(Discriminator, self).__init__()
+        super().__init__()
 
         in_channels = 3
 
