@@ -370,7 +370,7 @@ class Discriminator(nn.Module):
         # The first, third, fifth (and so on) convolutional blocks increase the number of channels but retain image size
         # The second, fourth, sixth (and so on) convolutional blocks retain the same number of channels but halve image size
         # The first convolutional block is unique because it does not employ batch normalization
-        conv_blocks = list()
+        conv_blocks = []
         for i in range(n_blocks):
             out_channels = (
                 (n_channels if i is 0 else in_channels * 2)
@@ -421,18 +421,20 @@ class Discriminator(nn.Module):
 
 class TruncatedVGG19(nn.Module):
     """
-    A truncated VGG19 network, such that its output is the 'feature map obtained by the j-th convolution (after activation)
+    A truncated VGG19 network, such that its output is the
+    'feature map obtained by the j-th convolution (after activation)
     before the i-th maxpooling layer within the VGG19 network', as defined in the paper.
 
     Used to calculate the MSE loss in this VGG feature-space, i.e. the VGG loss.
     """
 
-    def __init__(self, i, j):
+    def __init__(self, i: int = 5, j: int = 4):
         """
-        :param i: the index i in the definition above
-        :param j: the index j in the definition above
+        Parameters:
+            i: the index i in the definition above
+            j: the index j in the definition above
         """
-        super(TruncatedVGG19, self).__init__()
+        super().__init__()
 
         # Load the pre-trained VGG19 available in torchvision
         vgg19 = torchvision.models.vgg19(pretrained=True)
@@ -465,14 +467,17 @@ class TruncatedVGG19(nn.Module):
             *list(vgg19.features.children())[: truncate_at + 1]
         )
 
-    def forward(self, input):
+    def forward(self, x: torch.Tensor):
         """
-        Forward propagation
-        :param input: high-resolution or super-resolution images, a tensor of size (N, 3, w * scaling factor, h * scaling factor)
-        :return: the specified VGG19 feature map, a tensor of size (N, feature_map_channels, feature_map_w, feature_map_h)
+        Parameters:
+            input: high-resolution or super-resolution images, a tensor of size
+                (N, 3, w * scaling factor, h * scaling factor)
+
+        Returns
+            (torch.Tensor): the specified VGG19 feature map, a tensor of size
+                (N, feature_map_channels, feature_map_w, feature_map_h)
         """
-        output = self.truncated_vgg19(
-            input
-        )  # (N, feature_map_channels, feature_map_w, feature_map_h)
+        # (N, feature_map_channels, feature_map_w, feature_map_h)
+        output = self.truncated_vgg19(x)
 
         return output
