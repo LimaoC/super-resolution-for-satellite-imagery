@@ -373,8 +373,8 @@ class Discriminator(nn.Module):
         conv_blocks = []
         for i in range(n_blocks):
             out_channels = (
-                (n_channels if i is 0 else in_channels * 2)
-                if i % 2 is 0
+                (n_channels if i == 0 else in_channels * 2)
+                if i % 2 == 0
                 else in_channels
             )
             conv_blocks.append(
@@ -382,8 +382,8 @@ class Discriminator(nn.Module):
                     in_channels=in_channels,
                     out_channels=out_channels,
                     kernel_size=kernel_size,
-                    stride=1 if i % 2 is 0 else 2,
-                    batch_norm=i is not 0,
+                    stride=1 if i % 2 == 0 else 2,
+                    batch_norm=i != 0,
                     activation="LeakyReLu",
                 )
             )
@@ -437,7 +437,7 @@ class TruncatedVGG19(nn.Module):
         super().__init__()
 
         # Load the pre-trained VGG19 available in torchvision
-        vgg19 = torchvision.models.vgg19(pretrained=True)
+        vgg19 = torchvision.models.vgg19(weights="DEFAULT")
 
         maxpool_counter = 0
         conv_counter = 0
