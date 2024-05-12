@@ -247,7 +247,7 @@ class SRResNet(nn.Module):
             activation="Tanh",
         )
 
-    def forward(self, lr_imgs):
+    def forward(self, lr_imgs: torch.Tensor):
         """
         Parameters:
             lr_imgs: low-resolution input images, a tensor of size (N, 3, w, h)
