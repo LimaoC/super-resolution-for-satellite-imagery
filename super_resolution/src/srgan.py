@@ -367,8 +367,10 @@ class Discriminator(nn.Module):
         in_channels = 3
 
         # A series of convolutional blocks
-        # The first, third, fifth (and so on) convolutional blocks increase the number of channels but retain image size
-        # The second, fourth, sixth (and so on) convolutional blocks retain the same number of channels but halve image size
+        # The first, third, fifth (and so on) convolutional blocks increase the number of channels
+        # but retain image size
+        # The second, fourth, sixth (and so on) convolutional blocks retain the same number of
+        # channels but halve image size
         # The first convolutional block is unique because it does not employ batch normalization
         conv_blocks = []
         for i in range(n_blocks):
@@ -400,13 +402,15 @@ class Discriminator(nn.Module):
 
         self.fc2 = nn.Linear(1024, 1)
 
-        # Don't need a sigmoid layer because the sigmoid operation is performed by PyTorch's nn.BCEWithLogitsLoss()
+        # Don't need a sigmoid layer because the sigmoid operation is performed by PyTorch's
+        # nn.BCEWithLogitsLoss()
 
     def forward(self, imgs):
         """
         Forward propagation.
 
-        :param imgs: high-resolution or super-resolution images which must be classified as such, a tensor of size (N, 3, w * scaling factor, h * scaling factor)
+        :param imgs: high-resolution or super-resolution images which must be classified as such, a
+            tensor of size (N, 3, w * scaling factor, h * scaling factor)
         :return: a score (logit) for whether it is a high-resolution image, a tensor of size (N)
         """
         batch_size = imgs.size(0)
