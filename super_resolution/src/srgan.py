@@ -464,7 +464,7 @@ class TruncatedVGG19(nn.Module):
         # Check if conditions were satisfied
         assert (
             maxpool_counter == i - 1 and conv_counter == j
-        ), "One or both of i=%d and j=%d are not valid choices for the VGG19!" % (i, j)
+        ), f"One or both of i={i} and j={j} are not valid choices for the VGG19!"
 
         # Truncate to the jth convolution (+ activation) before the ith maxpool layer
         self.truncated_vgg19 = nn.Sequential(
