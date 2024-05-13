@@ -118,6 +118,7 @@ class S2VSite(Dataset):
             download_dir: directory to download dataset to, defaults to "data/".
             device: device to load tensors onto, defaults to "cpu".
         """
+        
         if site_name not in S2VSites.get_sites():
             raise ValueError(f"site {site_name} not found")
         if bands not in ("all", "rgbnir", "edgenir"):
@@ -296,9 +297,9 @@ class PatchData(Dataset):
         self._transform = transform
 
 
-def download_all_site_data(download_dir: str) -> None:
+def download_all_site_data(download_dir: str, sites: set[str]) -> None:
     """Download and extracts all site data into the given download directory."""
-    for site_name, _ in S2VSites.SITES:
+    for site_name in sites:
         print(f"Downloading site {site_name}")
         S2VSite(
             site_name=site_name,
@@ -333,7 +334,7 @@ def create_train_test_split(
 
     # Download if required
     if len(missing) != 0 and _check_to_download(len(all_sites), len(missing)):
-        download_all_site_data(data_dir)
+        download_all_site_data(data_dir, missing)
     sites = _get_downloaded_sites(data_dir_path) & all_sites
 
     # Gather all samples
