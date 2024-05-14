@@ -228,7 +228,7 @@ class S2VSite(Dataset):
 
         zip_name = self.site_name + ".7z"
 
-        if not self.is_downloaded():
+        if not self.is_downloaded() and not self.is_extracted():
             download_url(
                 url=self.url[0],
                 root=self.download_dir,
