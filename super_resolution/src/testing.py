@@ -38,8 +38,10 @@ def compute_metrics(
         with torch.no_grad():
             super_resolved = super_resolver(low_res)
             mean_mse += mse_loss(super_resolved, high_res).item()
-            mean_psnr += peak_signal_noise_ratio(super_resolved, high_res).item()
-            ssim = structural_similarity_index_measure(super_resolved, high_res)
+            mean_psnr += peak_signal_noise_ratio(super_resolved, high_res, 1.0).item()
+            ssim = structural_similarity_index_measure(
+                super_resolved, high_res, data_range=(0.0, 1.0)
+            )
             assert isinstance(ssim, torch.Tensor)
             mean_ssim += ssim.item()
     mean_mse /= len(loader)
