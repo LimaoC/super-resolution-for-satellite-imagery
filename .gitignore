@@ -6,3 +6,7 @@ __pycache__
 .DS_Store
 data
 discarded.py
+x_train.pt
+y_train.pt
+x_test.pt
+y_test.pt
