@@ -3,6 +3,7 @@
 from typing import Callable
 from dataclasses import dataclass
 
+import tqdm
 import torch
 from torcheval.metrics.functional import peak_signal_noise_ratio
 from torchmetrics.functional.image import structural_similarity_index_measure
@@ -34,7 +35,7 @@ def compute_metrics(
     mean_psnr = 0.0
     mean_ssim = 0.0
     mean_mse = 0.0
-    for low_res, high_res in loader:
+    for low_res, high_res in tqdm.tqdm(loader, ncols=100, total=len(loader)):
         with torch.no_grad():
             super_resolved = super_resolver(low_res)
             mean_mse += mse_loss(super_resolved, high_res).item()
