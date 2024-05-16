@@ -10,6 +10,8 @@ from torchmetrics.functional.image import structural_similarity_index_measure
 from torch.nn.functional import mse_loss
 from torch.utils.data import DataLoader
 
+COLUMN_WIDTH = 100
+
 
 @dataclass
 class Metrics:
@@ -21,7 +23,9 @@ class Metrics:
 
 
 def compute_metrics(
-    super_resolver: Callable[[torch.Tensor], torch.Tensor], loader: DataLoader
+    super_resolver: Callable[[torch.Tensor], torch.Tensor],
+    loader: DataLoader,
+    verbose: bool = True,
 ):
     """Compute super resolution metrics using the given super-resolution model.
 
@@ -31,11 +35,17 @@ def compute_metrics(
                 resolution images and return high resolution images.
         loader (DataLoader): Image loader, should iterate over low resolution, high_resolution
             batches.
+        verbose (bool): True to show progress.
     """
+    if verbose:
+        loop = tqdm.tqdm(loader, ncols=COLUMN_WIDTH, total=len(loader))
+    else:
+        loop = loader
+
     mean_psnr = 0.0
     mean_ssim = 0.0
     mean_mse = 0.0
-    for low_res, high_res in tqdm.tqdm(loader, ncols=100, total=len(loader)):
+    for low_res, high_res in loop:
         with torch.no_grad():
             super_resolved = super_resolver(low_res)
             mean_mse += mse_loss(super_resolved, high_res).item()
