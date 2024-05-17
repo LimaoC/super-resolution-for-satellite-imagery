@@ -28,6 +28,9 @@ except ImportError:
         "Unable to import py7zr, data download functionality disabled", ImportWarning
     )
 
+RED_INDEX = 2
+GREEN_INDEX = 1
+BLUE_INDEX = 0
 RGB_DIMS = 3
 TRAIN_PROPORTION = 0.7
 VAL_PROPORTION = 0.5
@@ -411,7 +414,8 @@ def _get_downloaded_sites(data_dir: pathlib.Path) -> set[str]:
 def _load_sen2venus_tensor(
     file: str, pos: int, device: Union[torch.device, str]
 ) -> torch.Tensor:
-    return torch.load(file, map_location=device)[pos] / S2VSite.SCALE
+    patch = torch.load(file, map_location=device)[pos] / S2VSite.SCALE
+    return patch[[RED_INDEX, GREEN_INDEX, BLUE_INDEX]]
 
 
 def _load_canonical_order() -> list[int]:
