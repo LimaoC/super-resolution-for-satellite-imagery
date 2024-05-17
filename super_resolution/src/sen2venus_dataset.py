@@ -228,7 +228,7 @@ class S2VSite(Dataset):
 
         zip_name = self.site_name + ".7z"
 
-        if not self.is_downloaded() and not self.is_extracted():
+        if not self.is_downloaded():
             download_url(
                 url=self.url[0],
                 root=self.download_dir,
@@ -411,7 +411,8 @@ def _get_downloaded_sites(data_dir: pathlib.Path) -> set[str]:
 def _load_sen2venus_tensor(
     file: str, pos: int, device: Union[torch.device, str]
 ) -> torch.Tensor:
-    return torch.load(file, map_location=device)[pos] / S2VSite.SCALE
+    patch = torch.load(file, map_location=device)[pos] / S2VSite.SCALE
+    return patch[[2, 1, 0]]
 
 
 def _load_canonical_order() -> list[int]:
