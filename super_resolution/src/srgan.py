@@ -400,7 +400,7 @@ class Discriminator(nn.Module):
 
         self.leaky_relu = nn.LeakyReLU(0.2)
 
-        self.fc2 = nn.Linear(1024, 1)
+        self.fc2 = nn.Linear(fc_size, 1)
 
         # Don't need a sigmoid layer because the sigmoid operation is performed by PyTorch's
         # nn.BCEWithLogitsLoss()
