@@ -7,6 +7,7 @@ import tqdm
 import torch
 from torcheval.metrics.functional import peak_signal_noise_ratio
 from torchmetrics.functional.image import structural_similarity_index_measure
+from torcheval.metrics import FrechetInceptionDistance
 from torch.nn.functional import mse_loss
 from torch.utils.data import DataLoader
 
@@ -20,6 +21,7 @@ class Metrics:
     mse: float
     psnr: float
     ssim: float
+    fid: float
 
 
 def compute_metrics(
@@ -41,10 +43,12 @@ def compute_metrics(
         loop = tqdm.tqdm(loader, ncols=COLUMN_WIDTH, total=len(loader))
     else:
         loop = loader
-
+        
     mean_psnr = 0.0
     mean_ssim = 0.0
     mean_mse = 0.0
+    frechet = FrechetInceptionDistance()
+    
     for low_res, high_res in loop:
         with torch.no_grad():
             super_resolved = super_resolver(low_res)
@@ -55,8 +59,14 @@ def compute_metrics(
             )
             assert isinstance(ssim, torch.Tensor)
             mean_ssim += ssim.item()
+
+            super_resolved = super_resolved.clamp(0,1)
+            frechet.update(super_resolved, False)
+            frechet.update(high_res, True)
+            
     mean_mse /= len(loader)
     mean_ssim /= len(loader)
     mean_psnr /= len(loader)
+    fid = frechet.compute()
 
-    return Metrics(mean_mse, mean_psnr, mean_ssim)
+    return Metrics(mean_mse, mean_psnr, mean_ssim, fid)
