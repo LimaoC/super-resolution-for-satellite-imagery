@@ -411,7 +411,8 @@ def _get_downloaded_sites(data_dir: pathlib.Path) -> set[str]:
 def _load_sen2venus_tensor(
     file: str, pos: int, device: Union[torch.device, str]
 ) -> torch.Tensor:
-    return torch.load(file, map_location=device)[pos] / S2VSite.SCALE
+    x = torch.load(file, map_location=device)[pos] / S2VSite.SCALE
+    return x[[2, 1, 0]]
 
 
 def _load_canonical_order() -> list[int]:
