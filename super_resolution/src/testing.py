@@ -5,9 +5,9 @@ from dataclasses import dataclass
 
 import tqdm
 import torch
+from torcheval.metrics import FrechetInceptionDistance
 from torcheval.metrics.functional import peak_signal_noise_ratio
 from torchmetrics.functional.image import structural_similarity_index_measure
-from torcheval.metrics import FrechetInceptionDistance
 from torch.nn.functional import mse_loss
 from torch.utils.data import DataLoader
 
@@ -69,4 +69,4 @@ def compute_metrics(
     mean_psnr /= len(loader)
     fid = frechet.compute()
 
-    return Metrics(mean_mse, mean_psnr, mean_ssim, fid)
+    return Metrics(mean_mse, mean_psnr, mean_ssim, fid.item())
