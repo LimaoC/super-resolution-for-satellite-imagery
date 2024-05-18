@@ -141,7 +141,7 @@ class ResidualBlock(nn.Module):
             in_channels=n_channels,
             out_channels=n_channels,
             kernel_size=kernel_size,
-            batch_norm=True,
+            batch_norm=False,
             activation="PReLu",
         )
 
@@ -150,7 +150,7 @@ class ResidualBlock(nn.Module):
             in_channels=n_channels,
             out_channels=n_channels,
             kernel_size=kernel_size,
-            batch_norm=True,
+            batch_norm=False,
             activation=None,
         )
 
@@ -223,7 +223,7 @@ class SRResNet(nn.Module):
             in_channels=n_channels,
             out_channels=n_channels,
             kernel_size=small_kernel_size,
-            batch_norm=True,
+            batch_norm=False,
             activation=None,
         )
 
@@ -401,9 +401,6 @@ class Discriminator(nn.Module):
         self.leaky_relu = nn.LeakyReLU(0.2)
 
         self.fc2 = nn.Linear(fc_size, 1)
-
-        # Don't need a sigmoid layer because the sigmoid operation is performed by PyTorch's
-        # nn.BCEWithLogitsLoss()
 
     def forward(self, imgs):
         """
