@@ -37,7 +37,7 @@ class ConvolutionalBlock(nn.Module):
 
         if activation is not None:
             activation = activation.lower()
-            assert activation in {"prelu", "leakyrelu", "tanh"}
+            assert activation in {"prelu", "leakyrelu", "tanh", "sigmoid"}
 
         layers: list[nn.Module] = []
 
@@ -60,6 +60,8 @@ class ConvolutionalBlock(nn.Module):
             layers.append(nn.LeakyReLU(0.2))
         elif activation == "tanh":
             layers.append(nn.Tanh())
+        elif activation == "sigmoid":
+            layers.append(nn.Sigmoid())
 
         self.conv_block = nn.Sequential(*layers)
 
@@ -242,7 +244,7 @@ class SRResNet(nn.Module):
             out_channels=3,
             kernel_size=large_kernel_size,
             batch_norm=False,
-            activation="Tanh",
+            activation="sigmoid",
         )
 
     def forward(self, lr_imgs: torch.Tensor):
