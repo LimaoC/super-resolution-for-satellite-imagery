@@ -136,7 +136,6 @@ class ResidualBlock(nn.Module):
         """
         super().__init__()
 
-        # The first convolutional block
         self.conv_block1 = ConvolutionalBlock(
             in_channels=n_channels,
             out_channels=n_channels,
@@ -145,7 +144,6 @@ class ResidualBlock(nn.Module):
             activation="PReLu",
         )
 
-        # The second convolutional block
         self.conv_block2 = ConvolutionalBlock(
             in_channels=n_channels,
             out_channels=n_channels,
@@ -366,12 +364,6 @@ class Discriminator(nn.Module):
 
         in_channels = 3
 
-        # A series of convolutional blocks
-        # The first, third, fifth (and so on) convolutional blocks increase the number of channels
-        # but retain image size
-        # The second, fourth, sixth (and so on) convolutional blocks retain the same number of
-        # channels but halve image size
-        # The first convolutional block is unique because it does not employ batch normalization
         conv_blocks = []
         for i in range(n_blocks):
             out_channels = (
@@ -393,7 +385,6 @@ class Discriminator(nn.Module):
         self.conv_blocks = nn.Sequential(*conv_blocks)
 
         # An adaptive pool layer that resizes it to a standard size
-        # For the default input size of 96 and 8 convolutional blocks, this will have no effect
         self.adaptive_pool = nn.AdaptiveAvgPool2d((6, 6))
 
         self.fc1 = nn.Linear(out_channels * 6 * 6, fc_size)
@@ -443,7 +434,6 @@ class TruncatedVGG19(nn.Module):
         maxpool_counter = 0
         conv_counter = 0
         truncate_at = 0
-        # Iterate through the convolutional section ("features") of the VGG19
         for layer in vgg19.features.children():
             truncate_at += 1
 
@@ -458,7 +448,6 @@ class TruncatedVGG19(nn.Module):
             if maxpool_counter == i - 1 and conv_counter == j:
                 break
 
-        # Check if conditions were satisfied
         assert (
             maxpool_counter == i - 1 and conv_counter == j
         ), f"One or both of i={i} and j={j} are not valid choices for the VGG19!"
