@@ -10,3 +10,7 @@ x_train.pt
 y_train.pt
 x_test.pt
 y_test.pt
+model_vgg_one_layer_feature_loss.pt
+newest_full_feature_loss_f2_5.pt
+newest_onelayer_feature_loss_f2_5.pt
+newest_vgg_style_loss.pt
