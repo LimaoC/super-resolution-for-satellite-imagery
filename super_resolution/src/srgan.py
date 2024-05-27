@@ -151,7 +151,7 @@ class ResidualBlock(nn.Module):
             out_channels=n_channels,
             kernel_size=kernel_size,
             batch_norm=False,
-            activation="PRelu",
+            activation=None,
         )
 
     def forward(self, x: torch.Tensor):
@@ -224,7 +224,7 @@ class SRResNet(nn.Module):
             out_channels=n_channels,
             kernel_size=small_kernel_size,
             batch_norm=False,
-            activation="PRelu",
+            activation=None,
         )
 
         # Upscaling
@@ -244,7 +244,7 @@ class SRResNet(nn.Module):
             out_channels=3,
             kernel_size=large_kernel_size,
             batch_norm=False,
-            activation="sigmoid",
+            activation="tanh",
         )
 
     def forward(self, lr_imgs: torch.Tensor):
